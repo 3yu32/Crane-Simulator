@@ -250,13 +250,15 @@ export const gameConfig: GameConfig = {
     count: 2,
     openAngle: 0.36,
     closedAngle: 0.02,
-    limitOpen: 0.44,
+    limitOpen: 0.62,
     limitClose: 0.55,
 
     motorStiffness: 32,
     motorDamping: 4,
-    openStiffness: 140,
-    openDamping: 12,
+    // Soft enough that a firm push from the prize can force the prongs open
+    // past `openAngle` — up to `limitOpen` if friction lets them slide.
+    openStiffness: 60,
+    openDamping: 6,
     motorMaxImpulse: 12,
 
     friction: 3.0,
