@@ -4,6 +4,7 @@
 
 import { GameScene } from "./components/GameScene";
 import { CraneControls } from "./components/Controls/CraneControls";
+import { ArmControls } from "./components/Controls/ArmControls";
 import { DebugPanel } from "./components/Debug/DebugPanel";
 import { useGameState } from "./game/gameStore";
 import "./App.css";
@@ -27,6 +28,7 @@ export default function App() {
 
       <header className="title">3D CRANE GAME</header>
       <PrizeGetBanner />
+      <ArmControls />
       <CraneControls />
       <DebugPanel />
     </div>

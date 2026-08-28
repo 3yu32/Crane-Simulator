@@ -59,18 +59,23 @@ npm run lint      # oxlint
 | --- | --- |
 | **右** ボタンを押している間 | クレーンが +X（右）へ移動。離すと X 位置を確定し、ボタンは無効化 |
 | **奥** ボタンを押している間 | クレーンがキャビネット奥へ移動。離すと Z 位置を確定し、自動シーケンス開始 |
-| **RESET** | 景品・爪・アーム・ゲーム状態を初期化（リロード不要） |
+| **RESET** | 景品・爪・ゲーム状態を初期化（リロード不要。ARM の設定値は保持） |
 | **DEBUG**（右上）または URL に `?debug` | Debug モードの ON/OFF |
 
 ボタンは `pointerdown / pointerup` で実装しており、マウス・タッチ両方で動作します。
 
-Debug モードでは leva パネルから以下を調整できます：
+### ARM パネル（画面左上・常時表示）
 
-- **Arm**
-  - `Arm Power` … 爪モーターの強さ（掴む力・閉じる力）
-  - `Descent Limit Y` … アームが下降できる最下点（ハード制限）
-  - `Descent Stop Force (0=off)` … 下降中に爪へこの N 以上の接触力がかかると下降を停止。
-    0 で無効（`Descent Limit Y` まで下降）
+デバッグモードとは別に、ゲーム画面上でいつでも調整できます：
+
+| スライダー | 対応パラメータ | 内容 |
+| --- | --- | --- |
+| **アームパワー** | `claw.motorStiffness` | 爪モーターの強さ（掴む力・閉じる力）。20〜1200 |
+| **下降リミット (Y)** | `crane.lowestY` | アームが下降できる最下点（ハード制限）。1.2〜2.8 |
+| **下降停止力 (0=OFF)** | `crane.descentStopForce` | 下降中に爪へこの N 以上の接触力がかかると下降を停止。0 で無効 |
+
+Debug モード（leva パネル）ではさらに以下を調整できます：
+
 - Prize: mass / friction / width / height / depth
 - Bridge: rod gap / rod friction
 - Claw: open angle / closed angle / friction
@@ -78,6 +83,8 @@ Debug モードでは leva パネルから以下を調整できます：
 - `Show Physics Colliders`（コライダーのワイヤーフレーム表示）
 - `Orbit Camera`（固定カメラの代わりに OrbitControls）
 - 現在の State Machine の状態表示
+
+（アームパワー／下降リミット／下降停止力は上記「ARM パネル」で常時調整可能）
 
 ## 6. ディレクトリ構成
 
@@ -94,7 +101,7 @@ src/
 │   ├── useCraneController.ts  固定タイムステップでクレーンを駆動
 │   ├── prizeDetection.ts      取得判定（spec §27）
 │   ├── prizeDetection.test.ts
-│   └── useDebugConfig.ts      leva GUI と gameConfig の橋渡し
+│   └── useDebugConfig.ts      gameConfig ＋ ARM パネル ＋ leva GUI を合成
 ├── components/
 │   ├── GameScene.tsx          カメラ・ライト・物理ワールドの組み立て
 │   ├── Crane/
@@ -108,7 +115,9 @@ src/
 │   ├── Environment/
 │   │   ├── Cabinet.tsx        床（シュート穴あり）・壁・キャッチ受け
 │   │   └── GoalMarker.tsx
-│   ├── Controls/CraneControls.tsx
+│   ├── Controls/
+│   │   ├── CraneControls.tsx  右／奥／RESET ボタン
+│   │   └── ArmControls.tsx    画面左上の ARM スライダー（常時表示）
 │   └── Debug/DebugPanel.tsx
 ├── App.tsx
 └── main.tsx

@@ -116,6 +116,57 @@
   }
 }
 
+.arm-controls {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 232px;
+  padding: 12px 14px 14px;
+  background: rgba(15, 17, 23, 0.82);
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  touch-action: auto;
+}
+
+.arm-controls-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #ff9d3d;
+  margin-bottom: 10px;
+}
+
+.arm-control-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: #c7ccd6;
+}
+
+.arm-control-label {
+  grid-column: 1 / 2;
+}
+
+.arm-control-value {
+  grid-column: 2 / 3;
+  min-width: 34px;
+  text-align: right;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: #ffd15c;
+}
+
+.arm-control-row input[type="range"] {
+  grid-column: 1 / 3;
+  width: 100%;
+  margin: 4px 0 0;
+  accent-color: #ff9d3d;
+  cursor: pointer;
+}
+
 .debug-toggle {
   position: absolute;
   top: 14px;

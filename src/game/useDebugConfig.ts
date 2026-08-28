@@ -1,23 +1,23 @@
 /**
- * Bridges the Leva debug GUI (spec §20) with the immutable {@link gameConfig}.
+ * Builds the effective {@link GameConfig} from three layers:
  *
- * When the debug panel is closed the base config is returned untouched. When it
- * is open, the tunable subset is overlaid with the live GUI values and the
- * resulting config flows down to every component. Bodies whose shape/mass
+ *  1. the immutable {@link gameConfig} defaults
+ *  2. the always-on-screen Arm controls (`store.armControls`) — arm power,
+ *     descent limit and descent stop force are player-adjustable during play
+ *  3. the Leva debug GUI (spec §20), applied only while debug mode is on
+ *
+ * The resulting config flows down to every component. Bodies whose shape/mass
  * depend on these values are re-mounted via keys derived from the config.
  */
 
 import { useEffect, useMemo } from "react";
 import { folder, useControls } from "leva";
 import { gameConfig, type GameConfig } from "../config/gameConfig";
-import {
-  setOrbit,
-  setShowColliders,
-  useGameState,
-} from "./gameStore";
+import { setOrbit, setShowColliders, useGameState } from "./gameStore";
 
 export function useDebugConfig(): GameConfig {
   const debug = useGameState((s) => s.debug);
+  const armControls = useGameState((s) => s.armControls);
 
   const values = useControls(
     {
@@ -66,29 +66,6 @@ export function useDebugConfig(): GameConfig {
           step: 0.05,
         },
       }),
-      Arm: folder({
-        armPower: {
-          value: gameConfig.claw.motorStiffness,
-          min: 20,
-          max: 1200,
-          step: 10,
-          label: "Arm Power",
-        },
-        descentLimitY: {
-          value: gameConfig.crane.lowestY,
-          min: 1.2,
-          max: 2.8,
-          step: 0.02,
-          label: "Descent Limit Y",
-        },
-        descentStopForce: {
-          value: gameConfig.crane.descentStopForce,
-          min: 0,
-          max: 120,
-          step: 1,
-          label: "Descent Stop Force (0=off)",
-        },
-      }),
       Claw: folder({
         openAngle: {
           value: gameConfig.claw.openAngle,
@@ -132,11 +109,24 @@ export function useDebugConfig(): GameConfig {
   }, [debug, values.orbit]);
 
   return useMemo<GameConfig>(() => {
-    if (!debug) return gameConfig;
-    return {
+    // Layer 2: on-screen Arm controls, always applied.
+    const withArm: GameConfig = {
       ...gameConfig,
+      claw: { ...gameConfig.claw, motorStiffness: armControls.armPower },
+      crane: {
+        ...gameConfig.crane,
+        lowestY: armControls.descentLimitY,
+        descentStopForce: armControls.descentStopForce,
+      },
+    };
+
+    if (!debug) return withArm;
+
+    // Layer 3: Leva debug overrides.
+    return {
+      ...withArm,
       prize: {
-        ...gameConfig.prize,
+        ...withArm.prize,
         mass: values.prizeMass,
         friction: values.prizeFriction,
         width: values.prizeWidth,
@@ -144,28 +134,28 @@ export function useDebugConfig(): GameConfig {
         depth: values.prizeDepth,
       },
       bridge: {
-        ...gameConfig.bridge,
+        ...withArm.bridge,
         rodGap: values.rodGap,
         friction: values.rodFriction,
       },
       claw: {
-        ...gameConfig.claw,
+        ...withArm.claw,
         openAngle: values.openAngle,
         closedAngle: values.closedAngle,
-        motorStiffness: values.armPower,
         friction: values.clawFriction,
       },
       crane: {
-        ...gameConfig.crane,
+        ...withArm.crane,
         xSpeed: values.xSpeed,
         zSpeed: values.zSpeed,
         descentSpeed: values.descentSpeed,
-        lowestY: values.descentLimitY,
-        descentStopForce: values.descentStopForce,
       },
     };
   }, [
     debug,
+    armControls.armPower,
+    armControls.descentLimitY,
+    armControls.descentStopForce,
     values.prizeMass,
     values.prizeFriction,
     values.prizeWidth,
@@ -173,9 +163,6 @@ export function useDebugConfig(): GameConfig {
     values.prizeDepth,
     values.rodGap,
     values.rodFriction,
-    values.armPower,
-    values.descentLimitY,
-    values.descentStopForce,
     values.openAngle,
     values.closedAngle,
     values.clawFriction,

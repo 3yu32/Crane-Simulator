@@ -8,13 +8,26 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { gameConfig } from "../config/gameConfig";
 import type { CraneState } from "./craneStateMachine";
+
+/** Live arm parameters exposed as always-on-screen controls (not debug-only). */
+export interface ArmControls {
+  /** Claw motor stiffness — grip / closing force. */
+  armPower: number;
+  /** Hard lower bound for the arm's descent (hub Y). */
+  descentLimitY: number;
+  /** Claw contact force (N) that halts the descent early; 0 disables it. */
+  descentStopForce: number;
+}
 
 export interface GameState {
   craneState: CraneState;
   prizeGet: boolean;
   /** Held-button input, driven by pointer events on the on-screen buttons. */
   input: { right: boolean; back: boolean };
+  /** Player-adjustable arm parameters, shown on the game screen. */
+  armControls: ArmControls;
   /** Bumped by RESET to trigger imperative re-initialisation everywhere. */
   resetNonce: number;
   /** Debug: master toggle for the tuning panel and helpers. */
@@ -29,6 +42,11 @@ const initialState: GameState = {
   craneState: "IDLE",
   prizeGet: false,
   input: { right: false, back: false },
+  armControls: {
+    armPower: gameConfig.claw.motorStiffness,
+    descentLimitY: gameConfig.crane.lowestY,
+    descentStopForce: gameConfig.crane.descentStopForce,
+  },
   resetNonce: 0,
   debug:
     typeof window !== "undefined" &&
@@ -90,6 +108,13 @@ export function setShowColliders(showColliders: boolean): void {
 
 export function setOrbit(orbit: boolean): void {
   setState({ orbit });
+}
+
+export function setArmControl<K extends keyof ArmControls>(
+  key: K,
+  value: ArmControls[K],
+): void {
+  setState({ armControls: { ...state.armControls, [key]: value } });
 }
 
 /**
