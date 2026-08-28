@@ -53,9 +53,11 @@ interface ControllerRuntime {
 
 const EPS = 1e-3;
 /** Ignore the slack check until the hub has descended at least this far. */
-const DESCEND_MARGIN = 0.14;
+const DESCEND_MARGIN = 0.1;
 /** Consecutive slack steps before halting the descent (debounce). */
-const SLACK_STREAK_TO_STOP = 4;
+const SLACK_STREAK_TO_STOP = 2;
+/** Fraction of the hung weight in contact force that halts the descent at once. */
+const HARD_CONTACT_FRACTION = 0.55;
 
 function approach(current: number, target: number, maxDelta: number): number {
   const d = target - current;
@@ -157,10 +159,15 @@ export function useCraneController(
       case "DESCENDING": {
         r.hubY = approach(r.hubY, c.lowestY, c.descentSpeed * dt);
         const descended = c.topY - r.hubY;
+        // A firm contact means the whole arm is taking load: stop at once so
+        // the prong joints never get dragged apart. A gentler slack reading
+        // (cable going limp) still stops after a couple of frames.
+        const hardContact = contactForce > hangWeight * HARD_CONTACT_FRACTION;
         const slackNow =
           descended > DESCEND_MARGIN && tension < c.descentTensionStop;
         r.slackStreak = slackNow ? r.slackStreak + 1 : 0;
         if (
+          (descended > DESCEND_MARGIN && hardContact) ||
           r.slackStreak >= SLACK_STREAK_TO_STOP ||
           Math.abs(r.hubY - c.lowestY) < EPS
         ) {

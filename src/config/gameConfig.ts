@@ -211,15 +211,15 @@ export const gameConfig: GameConfig = {
 
   physics: {
     timeStep: 1 / 60,
-    numSolverIterations: 8,
-    numInternalPgsIterations: 2,
+    numSolverIterations: 14,
+    numInternalPgsIterations: 3,
     ccd: true,
   },
 
   crane: {
     xSpeed: 1.3,
     zSpeed: 1.1,
-    descentSpeed: 0.6,
+    descentSpeed: 0.5,
     liftSpeed: 0.55,
     returnSpeed: 0.9,
 
@@ -239,7 +239,7 @@ export const gameConfig: GameConfig = {
     lowestY: 1.66,
 
     hubMass: 0.9,
-    descentTensionStop: 6,
+    descentTensionStop: 9,
 
     settleTime: 0.8,
     releaseTime: 0.7,
