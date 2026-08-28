@@ -20,10 +20,12 @@ interface ClawProps {
   side: ClawSide;
   /** World-space position of the pivot at mount time. */
   pivotPosition: [number, number, number];
+  /** Called with the total contact-force magnitude (N) on each contact event. */
+  onContactForce: (magnitude: number) => void;
 }
 
 export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
-  { config, side, pivotPosition },
+  { config, side, pivotPosition, onContactForce },
   ref,
 ) {
   const { claw, physics } = config;
@@ -47,6 +49,7 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
       restitution={claw.restitution}
       linearDamping={claw.linearDamping}
       angularDamping={claw.angularDamping}
+      onContactForce={(payload) => onContactForce(payload.totalForceMagnitude)}
       ccd={physics.ccd}
       canSleep={false}
     >

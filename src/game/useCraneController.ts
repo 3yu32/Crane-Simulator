@@ -33,6 +33,11 @@ export interface CraneControllerRefs {
   clawOpenRef: RefObject<boolean>;
   /** Imperative prize reset, registered by the Prize component. */
   resetPrizeRef: RefObject<(() => void) | null>;
+  /**
+   * Largest claw contact-force magnitude (N) seen since the last physics step,
+   * written by the claw bodies. Used to halt the descent on resistance.
+   */
+  contactForceRef: RefObject<number>;
 }
 
 interface ControllerRuntime {
@@ -56,7 +61,8 @@ export function useCraneController(
   refs: CraneControllerRefs,
   config: GameConfig,
 ): void {
-  const { craneRef, prizeRef, clawOpenRef, resetPrizeRef } = refs;
+  const { craneRef, prizeRef, clawOpenRef, resetPrizeRef, contactForceRef } =
+    refs;
   const { crane, goal, physics } = config;
 
   const rt = useRef<ControllerRuntime>({
@@ -86,6 +92,10 @@ export function useCraneController(
       r.state = craneReducer(r.state, event);
       r.timer = 0;
     };
+
+    // Consume the contact force accumulated during the previous step.
+    const contactForce = contactForceRef.current;
+    contactForceRef.current = 0;
 
     /* ---- RESET handling: observe the nonce, restore everything ---- */
     if (store.resetNonce !== r.lastResetNonce) {
@@ -133,10 +143,15 @@ export function useCraneController(
         if (r.timer >= cfg.crane.openTime) dispatch("OPEN_DONE");
         break;
 
-      case "DESCENDING":
+      case "DESCENDING": {
+        const stopForce = cfg.crane.descentStopForce;
+        const blocked = stopForce > 0 && contactForce >= stopForce;
         r.y = approach(r.y, cfg.crane.lowestY, cfg.crane.descentSpeed * dt);
-        if (Math.abs(r.y - cfg.crane.lowestY) < EPS) dispatch("DESCEND_DONE");
+        if (blocked || Math.abs(r.y - cfg.crane.lowestY) < EPS) {
+          dispatch("DESCEND_DONE");
+        }
         break;
+      }
 
       case "CLOSING":
         r.timer += dt;

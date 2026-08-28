@@ -58,8 +58,14 @@ export interface GameConfig {
 
     /** Y of the claw hub when fully raised. */
     topY: number;
-    /** Y of the claw hub at the bottom of a descent. */
+    /** Y of the claw hub at the bottom of a descent (hard depth limit). */
     lowestY: number;
+    /**
+     * Descent stops early once the claw contact force (N) exceeds this — e.g.
+     * when the prongs press onto the prize or the rods. 0 disables the check,
+     * so descent only stops at `lowestY` (spec §15).
+     */
+    descentStopForce: number;
 
     /** Seconds to hold still after the claws close, before lifting. */
     settleTime: number;
@@ -196,6 +202,7 @@ export const gameConfig: GameConfig = {
 
     topY: 3.0,
     lowestY: 1.66,
+    descentStopForce: 0,
 
     settleTime: 0.8,
     releaseTime: 0.7,

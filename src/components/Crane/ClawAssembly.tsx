@@ -25,6 +25,8 @@ interface ClawAssemblyProps {
   craneRef: RefObject<RapierRigidBody | null>;
   /** Open (true) / closed (false) command from the crane controller. */
   clawOpenRef: RefObject<boolean>;
+  /** Prongs report their peak contact-force magnitude here each step. */
+  contactForceRef: RefObject<number>;
   /** Hub position at mount time, for placing the prong bodies. */
   hubPosition: [number, number, number];
 }
@@ -33,6 +35,7 @@ export function ClawAssembly({
   config,
   craneRef,
   clawOpenRef,
+  contactForceRef,
   hubPosition,
 }: ClawAssemblyProps) {
   const { claw } = config;
@@ -97,6 +100,10 @@ export function ClawAssembly({
     );
   });
 
+  const reportForce = (magnitude: number) => {
+    if (magnitude > contactForceRef.current) contactForceRef.current = magnitude;
+  };
+
   return (
     <>
       <Claw
@@ -104,12 +111,14 @@ export function ClawAssembly({
         config={config}
         side="left"
         pivotPosition={[hx - halfSpan, hy, hz]}
+        onContactForce={reportForce}
       />
       <Claw
         ref={rightRef}
         config={config}
         side="right"
         pivotPosition={[hx + halfSpan, hy, hz]}
+        onContactForce={reportForce}
       />
     </>
   );

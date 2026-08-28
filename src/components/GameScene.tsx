@@ -116,10 +116,11 @@ function World({ config }: { config: GameConfig }) {
   const craneRef = useRef<RapierRigidBody>(null);
   const prizeRef = useRef<RapierRigidBody>(null);
   const clawOpenRef = useRef<boolean>(true);
+  const contactForceRef = useRef<number>(0);
   const resetPrizeRef: RefObject<(() => void) | null> = useRef(null);
 
   useCraneController(
-    { craneRef, prizeRef, clawOpenRef, resetPrizeRef },
+    { craneRef, prizeRef, clawOpenRef, resetPrizeRef, contactForceRef },
     config,
   );
 
@@ -152,6 +153,7 @@ function World({ config }: { config: GameConfig }) {
         config={config}
         craneRef={craneRef}
         clawOpenRef={clawOpenRef}
+        contactForceRef={contactForceRef}
         hubPosition={hubPosition}
       />
       <GoalMarker config={config} />

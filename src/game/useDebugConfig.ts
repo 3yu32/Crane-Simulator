@@ -66,6 +66,29 @@ export function useDebugConfig(): GameConfig {
           step: 0.05,
         },
       }),
+      Arm: folder({
+        armPower: {
+          value: gameConfig.claw.motorStiffness,
+          min: 20,
+          max: 1200,
+          step: 10,
+          label: "Arm Power",
+        },
+        descentLimitY: {
+          value: gameConfig.crane.lowestY,
+          min: 1.2,
+          max: 2.8,
+          step: 0.02,
+          label: "Descent Limit Y",
+        },
+        descentStopForce: {
+          value: gameConfig.crane.descentStopForce,
+          min: 0,
+          max: 120,
+          step: 1,
+          label: "Descent Stop Force (0=off)",
+        },
+      }),
       Claw: folder({
         openAngle: {
           value: gameConfig.claw.openAngle,
@@ -78,12 +101,6 @@ export function useDebugConfig(): GameConfig {
           min: -0.2,
           max: 0.8,
           step: 0.01,
-        },
-        motorStrength: {
-          value: gameConfig.claw.motorStiffness,
-          min: 10,
-          max: 600,
-          step: 5,
         },
         clawFriction: {
           value: gameConfig.claw.friction,
@@ -135,7 +152,7 @@ export function useDebugConfig(): GameConfig {
         ...gameConfig.claw,
         openAngle: values.openAngle,
         closedAngle: values.closedAngle,
-        motorStiffness: values.motorStrength,
+        motorStiffness: values.armPower,
         friction: values.clawFriction,
       },
       crane: {
@@ -143,6 +160,8 @@ export function useDebugConfig(): GameConfig {
         xSpeed: values.xSpeed,
         zSpeed: values.zSpeed,
         descentSpeed: values.descentSpeed,
+        lowestY: values.descentLimitY,
+        descentStopForce: values.descentStopForce,
       },
     };
   }, [
@@ -154,9 +173,11 @@ export function useDebugConfig(): GameConfig {
     values.prizeDepth,
     values.rodGap,
     values.rodFriction,
+    values.armPower,
+    values.descentLimitY,
+    values.descentStopForce,
     values.openAngle,
     values.closedAngle,
-    values.motorStrength,
     values.clawFriction,
     values.xSpeed,
     values.zSpeed,

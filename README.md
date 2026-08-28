@@ -66,9 +66,14 @@ npm run lint      # oxlint
 
 Debug モードでは leva パネルから以下を調整できます：
 
+- **Arm**
+  - `Arm Power` … 爪モーターの強さ（掴む力・閉じる力）
+  - `Descent Limit Y` … アームが下降できる最下点（ハード制限）
+  - `Descent Stop Force (0=off)` … 下降中に爪へこの N 以上の接触力がかかると下降を停止。
+    0 で無効（`Descent Limit Y` まで下降）
 - Prize: mass / friction / width / height / depth
 - Bridge: rod gap / rod friction
-- Claw: open angle / closed angle / motor strength / friction
+- Claw: open angle / closed angle / friction
 - Crane: X speed / Z speed / descent speed
 - `Show Physics Colliders`（コライダーのワイヤーフレーム表示）
 - `Orbit Camera`（固定カメラの代わりに OrbitControls）
@@ -147,9 +152,10 @@ spec のまま変更していません。
 | `crane.xSpeed / zSpeed` | 1.3 / 1.1 | 水平移動速度 (m/s) |
 | `crane.descentSpeed / liftSpeed` | 0.6 / 0.55 | 下降・上昇速度 (m/s) |
 | `crane.returnSpeed` | 0.9 | ホーム復帰速度 (m/s) |
-| `crane.lowestY` | 1.66 | 下降時の Hub 最下点 Y |
+| `crane.lowestY` | 1.66 | 下降時の Hub 最下点 Y（＝Descent Limit Y） |
+| `crane.descentStopForce` | 0 | 下降を止める爪接触力 (N)。0 で無効（spec §15） |
 | `claw.openAngle / closedAngle` | 0.30 / 0.66 rad | 爪モーターの目標角（開／閉） |
-| `claw.motorStiffness / motorDamping` | 420 / 42 | 爪モーターの剛性・減衰（＝掴む強さ） |
+| `claw.motorStiffness / motorDamping` | 420 / 42 | 爪モーターの剛性・減衰（＝Arm Power／掴む強さ） |
 | `claw.friction` | 3.0 | 爪の摩擦係数 |
 | `claw.pivotSpan` | 0.48 | 2 つの支点間の距離（景品幅より広く、下降時に干渉しない） |
 | `prize.width / height / depth` | 0.30 / 0.58 / 0.30 | 景品サイズ |
@@ -175,7 +181,9 @@ spec のまま変更していません。
 - 爪モーターの「max impulse」は Rapier JS バインディングに直接 API が無いため、
   現状は stiffness で近似。将来的に `setMotorMaxForce` 相当が入れば置き換え可能。
 - GLTF モデルへの差し替え（現状は primitive geometry のみ）。
-- 下降を「景品／棒への接触」で止める（現状は最低 Y 到達で停止）。
+- 下降停止は接触力しきい値（`Descent Stop Force`）で対応済み。デフォルトは 0（無効）で、
+  最下点 Y に到達して停止する。景品を綺麗にまたいで下降する配置だと接触が起きないため、
+  用途によってはしきい値運用より最下点運用が向く。
 - サウンド、コイン、演出など。
 
 ## 11. テスト
