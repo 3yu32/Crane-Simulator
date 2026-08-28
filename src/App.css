@@ -167,6 +167,27 @@
   cursor: pointer;
 }
 
+.prize-controls {
+  position: absolute;
+  right: 14px;
+  top: 52px;
+  width: 216px;
+  padding: 12px 14px 14px;
+  background: rgba(15, 17, 23, 0.82);
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  touch-action: auto;
+}
+
+.prize-controls-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #ff6f8b;
+  margin-bottom: 6px;
+}
+
 .side-view-frame {
   position: absolute;
   left: 14px;
@@ -223,7 +244,7 @@
 
 .debug-readout {
   position: absolute;
-  top: 48px;
+  bottom: 14px;
   right: 14px;
   padding: 10px 12px;
   font-size: 12px;

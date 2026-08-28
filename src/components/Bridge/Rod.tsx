@@ -1,10 +1,17 @@
 /**
- * A single bridge rod: a fixed cylinder rigid body with an explicit cylinder
- * collider (spec §6). The rigid body is rotated 90° about Z so the local +Y
- * cylinder axis points along world +X (the rods run left-to-right).
+ * A single bridge rod: a kinematic-position cylinder rigid body with an
+ * explicit cylinder collider (spec §6). Rotated 90° about Z so the local +Y
+ * cylinder axis points along world +X (the rods run left-to-right). Kinematic
+ * so the bridge can be repositioned (height / spacing) by dragging without
+ * rebuilding the bodies.
  */
 
-import { CylinderCollider, RigidBody } from "@react-three/rapier";
+import { forwardRef } from "react";
+import {
+  CylinderCollider,
+  RigidBody,
+  type RapierRigidBody,
+} from "@react-three/rapier";
 
 interface RodProps {
   position: [number, number, number];
@@ -14,16 +21,14 @@ interface RodProps {
   restitution: number;
 }
 
-export function Rod({
-  position,
-  radius,
-  length,
-  friction,
-  restitution,
-}: RodProps) {
+export const Rod = forwardRef<RapierRigidBody, RodProps>(function Rod(
+  { position, radius, length, friction, restitution },
+  ref,
+) {
   return (
     <RigidBody
-      type="fixed"
+      ref={ref}
+      type="kinematicPosition"
       colliders={false}
       position={position}
       rotation={[0, 0, Math.PI / 2]}
@@ -39,4 +44,4 @@ export function Rod({
       </mesh>
     </RigidBody>
   );
-}
+});

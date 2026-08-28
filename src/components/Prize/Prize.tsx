@@ -8,6 +8,7 @@ import { useEffect, type RefObject } from "react";
 import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import { Quaternion, Euler } from "three";
 import type { GameConfig } from "../../config/gameConfig";
+import { getState } from "../../game/gameStore";
 
 interface PrizeProps {
   config: GameConfig;
@@ -26,7 +27,12 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
     resetPrizeRef.current = () => {
       const body = prizeRef.current;
       if (!body) return;
-      body.setTranslation({ x: px, y: py, z: pz }, true);
+      // Drop the prize just above the highest current rod so it lands on the
+      // bridge even after the rods have been dragged.
+      const rods = getState().bridgeControls.rods;
+      const maxRodY = rods.reduce((m, r) => Math.max(m, r.y), 0);
+      const y = maxRodY + h / 2 + config.bridge.rodRadius + 0.06;
+      body.setTranslation({ x: px, y, z: pz }, true);
       const q = new Quaternion().setFromEuler(new Euler(rx, ry, rz));
       body.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
@@ -35,7 +41,7 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
     return () => {
       resetPrizeRef.current = null;
     };
-  }, [prizeRef, resetPrizeRef, px, py, pz, rx, ry, rz]);
+  }, [prizeRef, resetPrizeRef, px, py, pz, rx, ry, rz, h, config.bridge.rodRadius]);
 
   return (
     <RigidBody

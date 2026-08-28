@@ -5,6 +5,7 @@
 import { GameScene } from "./components/GameScene";
 import { CraneControls } from "./components/Controls/CraneControls";
 import { ArmControls } from "./components/Controls/ArmControls";
+import { PrizeControls } from "./components/Controls/PrizeControls";
 import { DebugPanel } from "./components/Debug/DebugPanel";
 import { useGameState } from "./game/gameStore";
 import "./App.css";
@@ -29,6 +30,7 @@ export default function App() {
       <header className="title">3D CRANE GAME</header>
       <PrizeGetBanner />
       <ArmControls />
+      <PrizeControls />
       {/* Frame/label over the side-view inset the WebGL canvas renders here
           (position must match SIDE_VIEW_RECT in components/SideView.tsx). */}
       <div className="side-view-frame">

@@ -59,10 +59,15 @@ npm run lint      # oxlint
 | --- | --- |
 | **右** ボタンを押している間 | クレーンが +X（右）へ移動。離すと X 位置を確定し、ボタンは無効化 |
 | **奥** ボタンを押している間 | クレーンがキャビネット奥へ移動。離すと Z 位置を確定し、自動シーケンス開始 |
-| **RESET** | 景品・爪・ゲーム状態を初期化（リロード不要。ARM の設定値は保持） |
+| **橋の棒をドラッグ** | 棒を 1 本ずつ動かせる。縦ドラッグ＝高さ、横ドラッグ＝奥行（Z）。向きは固定・間隔は不均等でも可 |
+| **RESET** | 景品・爪・ゲーム状態を初期化（リロード不要。ARM／橋／景品サイズの設定は保持） |
 | **DEBUG**（右上）または URL に `?debug` | Debug モードの ON/OFF |
 
 ボタンは `pointerdown / pointerup` で実装しており、マウス・タッチ両方で動作します。
+
+### PRIZE SIZE パネル（画面右上・常時表示）
+
+景品の 幅 / 高さ / 奥行 をスライダーで変更（コライダーごと作り直し）。
 
 ### ARM パネル（画面左上・常時表示）
 
@@ -78,8 +83,8 @@ npm run lint      # oxlint
 
 Debug モード（leva パネル）ではさらに以下を調整できます：
 
-- Prize: mass / friction / width / height / depth
-- Bridge: rod spacing / rod friction
+- Prize: mass / friction （幅/高さ/奥行は右上 PRIZE SIZE パネル）
+- Bridge: rod friction （高さ/間隔は棒のドラッグ）
 - Claw: open angle / closed angle / friction
 - Crane: X speed / Z speed / descent speed
 - `Show Physics Colliders`（コライダーのワイヤーフレーム表示）
@@ -115,7 +120,7 @@ src/
 │   │   └── Claw.tsx           1 本の爪（アーム＋爪先の複合コライダー）
 │   ├── Prize/Prize.tsx        Dynamic RigidBody ＋ Cuboid Collider
 │   ├── Bridge/
-│   │   ├── Bridge.tsx         横向き 4 本の棒
+│   │   ├── Bridge.tsx         横向き 4 本の棒 ＋ 1 本ずつのドラッグ処理
 │   │   └── Rod.tsx            Fixed RigidBody ＋ Cylinder Collider
 │   ├── Environment/
 │   │   ├── Cabinet.tsx        床（一枚板）・壁・枠
@@ -123,7 +128,8 @@ src/
 │   ├── SideView.tsx           左パネル下の横アングル インセット表示
 │   ├── Controls/
 │   │   ├── CraneControls.tsx  右／奥／RESET ボタン
-│   │   └── ArmControls.tsx    画面左上の ARM スライダー（常時表示）
+│   │   ├── ArmControls.tsx    画面左上の ARM スライダー（常時表示）
+│   │   └── PrizeControls.tsx  画面右上の 景品サイズ スライダー
 │   └── Debug/DebugPanel.tsx
 ├── App.tsx
 └── main.tsx
@@ -133,7 +139,7 @@ src/
 
 | 要素 | 剛体タイプ | コライダー | 補足 |
 | --- | --- | --- | --- |
-| 棒（×4） | fixed | Cylinder | X 方向（横向き）に壁から壁まで。Z 方向に等間隔配置。本数 / 間隔 / 半径 / 長さ を設定可 |
+| 棒（×4） | **kinematicPosition** | Cylinder | X 方向（横向き）に壁から壁まで。1 本ずつドラッグで高さ / 奥行(Z) を変更（`bridgeControls.rods`）|
 | 景品 | **dynamic** | Cuboid | 回転ロックなし。CCD 有効。摩擦・質量・damping すべて設定可 |
 | トロリー（carriage） | **kinematicPosition** | Cuboid | 実機の X/Z モーター相当。Y は固定。毎ステップ `setNextKinematicTranslation` |
 | 爪ハブ（hub） | **dynamic** | Cuboid | 回転ロック。糸（下記）で吊られ、上下は物理で決まる |

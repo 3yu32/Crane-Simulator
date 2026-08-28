@@ -153,7 +153,8 @@ function World({ config }: { config: GameConfig }) {
 
   // Re-mount bodies whose collider shape / mass properties changed in the GUI.
   const prizeKey = `${config.prize.width}|${config.prize.height}|${config.prize.depth}|${config.prize.mass}|${config.prize.friction}`;
-  const bridgeKey = `${config.bridge.rodCount}|${config.bridge.rodSpacing}|${config.bridge.rodLength}|${config.bridge.friction}`;
+  // rodHeight / rodSpacing are applied imperatively (drag), so not in the key.
+  const bridgeKey = `${config.bridge.rodCount}|${config.bridge.rodLength}|${config.bridge.friction}`;
 
   return (
     <>

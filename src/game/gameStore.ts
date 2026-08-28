@@ -21,6 +21,33 @@ export interface ArmControls {
   descentTensionStop: number;
 }
 
+/** Per-rod placement; each rod is dragged independently in the 3D view. */
+export interface RodPlacement {
+  /** Height. */
+  y: number;
+  /** Depth position along Z. */
+  z: number;
+}
+export interface BridgeControls {
+  rods: RodPlacement[];
+}
+
+/** Prize size, adjustable from an on-screen panel. */
+export interface PrizeControls {
+  width: number;
+  height: number;
+  depth: number;
+}
+
+function initialRods(): RodPlacement[] {
+  const { rodCount, rodSpacing, rodHeight, rodCenterZ } = gameConfig.bridge;
+  const first = -((rodCount - 1) / 2) * rodSpacing;
+  return Array.from({ length: rodCount }, (_, i) => ({
+    y: rodHeight,
+    z: rodCenterZ + first + i * rodSpacing,
+  }));
+}
+
 export interface GameState {
   craneState: CraneState;
   prizeGet: boolean;
@@ -28,6 +55,10 @@ export interface GameState {
   input: { right: boolean; back: boolean };
   /** Player-adjustable arm parameters, shown on the game screen. */
   armControls: ArmControls;
+  /** Per-rod bridge placement, adjustable by dragging each rod. */
+  bridgeControls: BridgeControls;
+  /** Prize size, adjustable from an on-screen panel. */
+  prizeControls: PrizeControls;
   /** Live estimate of the winch cable tension (N), for the on-screen readout. */
   cableTension: number;
   /** Bumped by RESET to trigger imperative re-initialisation everywhere. */
@@ -48,6 +79,12 @@ const initialState: GameState = {
     armPower: gameConfig.claw.motorStiffness,
     descentLimitY: gameConfig.crane.lowestY,
     descentTensionStop: gameConfig.crane.descentTensionStop,
+  },
+  bridgeControls: { rods: initialRods() },
+  prizeControls: {
+    width: gameConfig.prize.width,
+    height: gameConfig.prize.height,
+    depth: gameConfig.prize.depth,
   },
   cableTension: 0,
   resetNonce: 0,
@@ -125,6 +162,20 @@ export function setArmControl<K extends keyof ArmControls>(
   value: ArmControls[K],
 ): void {
   setState({ armControls: { ...state.armControls, [key]: value } });
+}
+
+export function setRodPlacement(index: number, patch: Partial<RodPlacement>): void {
+  const rods = state.bridgeControls.rods.map((r, i) =>
+    i === index ? { ...r, ...patch } : r,
+  );
+  setState({ bridgeControls: { rods } });
+}
+
+export function setPrizeControl<K extends keyof PrizeControls>(
+  key: K,
+  value: PrizeControls[K],
+): void {
+  setState({ prizeControls: { ...state.prizeControls, [key]: value } });
 }
 
 /**

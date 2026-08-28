@@ -18,6 +18,7 @@ import { setOrbit, setShowColliders, useGameState } from "./gameStore";
 export function useDebugConfig(): GameConfig {
   const debug = useGameState((s) => s.debug);
   const armControls = useGameState((s) => s.armControls);
+  const prizeControls = useGameState((s) => s.prizeControls);
 
   const values = useControls(
     {
@@ -26,6 +27,7 @@ export function useDebugConfig(): GameConfig {
         orbit: { value: false, label: "Orbit Camera" },
       }),
       Prize: folder({
+        // width / height / depth are on the on-screen PRIZE panel.
         prizeMass: { value: gameConfig.prize.mass, min: 0.05, max: 3, step: 0.05 },
         prizeFriction: {
           value: gameConfig.prize.friction,
@@ -33,32 +35,9 @@ export function useDebugConfig(): GameConfig {
           max: 2,
           step: 0.05,
         },
-        prizeWidth: {
-          value: gameConfig.prize.width,
-          min: 0.15,
-          max: 0.6,
-          step: 0.01,
-        },
-        prizeHeight: {
-          value: gameConfig.prize.height,
-          min: 0.2,
-          max: 1.0,
-          step: 0.01,
-        },
-        prizeDepth: {
-          value: gameConfig.prize.depth,
-          min: 0.15,
-          max: 0.6,
-          step: 0.01,
-        },
       }),
       Bridge: folder({
-        rodSpacing: {
-          value: gameConfig.bridge.rodSpacing,
-          min: 0.1,
-          max: 0.5,
-          step: 0.005,
-        },
+        // rod height / spacing are drag-adjustable in the 3D view.
         rodFriction: {
           value: gameConfig.bridge.friction,
           min: 0,
@@ -109,7 +88,8 @@ export function useDebugConfig(): GameConfig {
   }, [debug, values.orbit]);
 
   return useMemo<GameConfig>(() => {
-    // Layer 2: on-screen Arm controls, always applied.
+    // Layer 2: always-applied ARM panel controls. (The bridge rods are placed
+    // directly from the store by the Bridge component — not via config.)
     const withArm: GameConfig = {
       ...gameConfig,
       claw: { ...gameConfig.claw, motorStiffness: armControls.armPower },
@@ -117,6 +97,12 @@ export function useDebugConfig(): GameConfig {
         ...gameConfig.crane,
         lowestY: armControls.descentLimitY,
         descentTensionStop: armControls.descentTensionStop,
+      },
+      prize: {
+        ...gameConfig.prize,
+        width: prizeControls.width,
+        height: prizeControls.height,
+        depth: prizeControls.depth,
       },
     };
 
@@ -129,13 +115,9 @@ export function useDebugConfig(): GameConfig {
         ...withArm.prize,
         mass: values.prizeMass,
         friction: values.prizeFriction,
-        width: values.prizeWidth,
-        height: values.prizeHeight,
-        depth: values.prizeDepth,
       },
       bridge: {
         ...withArm.bridge,
-        rodSpacing: values.rodSpacing,
         friction: values.rodFriction,
       },
       claw: {
@@ -156,12 +138,11 @@ export function useDebugConfig(): GameConfig {
     armControls.armPower,
     armControls.descentLimitY,
     armControls.descentTensionStop,
+    prizeControls.width,
+    prizeControls.height,
+    prizeControls.depth,
     values.prizeMass,
     values.prizeFriction,
-    values.prizeWidth,
-    values.prizeHeight,
-    values.prizeDepth,
-    values.rodSpacing,
     values.rodFriction,
     values.openAngle,
     values.closedAngle,
