@@ -156,7 +156,7 @@ function World({ config }: { config: GameConfig }) {
         hubRef={hubRef}
         clawOpenRef={clawOpenRef}
         contactForceRef={contactForceRef}
-        clawKey={`${config.claw.friction}`}
+        clawKey={`${config.claw.friction}|${config.claw.gripThickness}|${config.claw.bendAngle}|${config.claw.upperTilt}`}
       />
       <GoalMarker config={config} />
     </>

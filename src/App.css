@@ -169,8 +169,8 @@
 
 .prize-controls {
   position: absolute;
-  right: 14px;
-  top: 52px;
+  left: 14px;
+  top: 434px;
   width: 216px;
   padding: 12px 14px 14px;
   background: rgba(15, 17, 23, 0.82);
@@ -191,13 +191,19 @@
 .side-view-frame {
   position: absolute;
   left: 14px;
-  top: 286px;
+  top: 288px;
   width: 232px;
-  height: 138px;
+  height: 136px;
+  padding: 0;
   border: 1px solid #2a2f3a;
   border-radius: 8px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.side-view-frame:hover {
+  border-color: #ff9d3d;
 }
 
 .side-view-frame span {
@@ -208,6 +214,10 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   color: #8b94a3;
+}
+
+.side-view-frame:hover span {
+  color: #ff9d3d;
 }
 
 .arm-control-readout {

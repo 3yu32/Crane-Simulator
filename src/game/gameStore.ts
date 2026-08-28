@@ -69,6 +69,8 @@ export interface GameState {
   showColliders: boolean;
   /** Debug: allow OrbitControls instead of the fixed play camera. */
   orbit: boolean;
+  /** The side view is the big one and the front view is the inset. */
+  sideViewSwapped: boolean;
 }
 
 const initialState: GameState = {
@@ -93,6 +95,7 @@ const initialState: GameState = {
     new URLSearchParams(window.location.search).has("debug"),
   showColliders: false,
   orbit: false,
+  sideViewSwapped: false,
 };
 
 let state: GameState = initialState;
@@ -155,6 +158,10 @@ export function setShowColliders(showColliders: boolean): void {
 
 export function setOrbit(orbit: boolean): void {
   setState({ orbit });
+}
+
+export function toggleSideView(): void {
+  setState({ sideViewSwapped: !state.sideViewSwapped });
 }
 
 export function setArmControl<K extends keyof ArmControls>(

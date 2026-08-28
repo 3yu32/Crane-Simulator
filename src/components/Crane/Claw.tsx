@@ -107,7 +107,7 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
         restitution={claw.restitution}
       />
       <CuboidCollider
-        args={[tx * 0.9, claw.gripLength / 2, tz * 0.75]}
+        args={[claw.gripThickness / 2, claw.gripLength / 2, claw.gripThickness * 1.3]}
         position={gripMid}
         rotation={[0, 0, phiLower]}
         friction={claw.friction}
@@ -123,7 +123,9 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
         {barMat}
       </mesh>
       <mesh position={gripMid} rotation={[0, 0, phiLower]} castShadow>
-        <boxGeometry args={[tx * 1.8, claw.gripLength, tz * 1.5]} />
+        <boxGeometry
+          args={[claw.gripThickness, claw.gripLength, claw.gripThickness * 2.6]}
+        />
         <meshStandardMaterial color="#c7a24a" roughness={0.5} metalness={0.4} />
       </mesh>
     </RigidBody>

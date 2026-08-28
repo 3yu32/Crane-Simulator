@@ -1,24 +1,30 @@
 /**
- * A second, always-on view of the same scene from the side (looking along −X),
- * rendered as a small inset under the ARM panel. Lets the player judge the
- * claw's depth (Z) position and the cable descent.
+ * A second, always-on view of the same scene from the side (looking along −X).
+ * One view fills the screen, the other is a small inset under the ARM panel;
+ * clicking the inset (see App.tsx) swaps which is which.
  *
  * Implemented as an extra render pass: taking a render priority makes R3F yield
  * the render loop, so this callback draws the main camera and then the inset.
  */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { PerspectiveCamera, type Scene, type WebGLRenderer } from "three";
+import {
+  PerspectiveCamera,
+  type PerspectiveCamera as TPerspectiveCamera,
+  type Scene,
+  type WebGLRenderer,
+} from "three";
 import type { GameConfig } from "../config/gameConfig";
+import { getState } from "../game/gameStore";
 
 /** Inset placement in CSS pixels (must match `.side-view-frame` in App.css). */
-const SIDE_VIEW_RECT = { left: 14, top: 286, width: 232, height: 138 };
+const SIDE_VIEW_RECT = { left: 14, top: 288, width: 232, height: 136 };
 
 function renderInset(
   renderer: WebGLRenderer,
   scene: Scene,
-  cam: PerspectiveCamera,
+  cam: TPerspectiveCamera,
   x: number,
   y: number,
   w: number,
@@ -38,44 +44,47 @@ function renderInset(
 export function SideView({ config }: { config: GameConfig }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
-  const camera = useThree((s) => s.camera);
+  const camera = useThree((s) => s.camera) as TPerspectiveCamera;
   const size = useThree((s) => s.size);
 
-  const sideCam = useMemo(
-    () =>
-      new PerspectiveCamera(
-        36,
-        SIDE_VIEW_RECT.width / SIDE_VIEW_RECT.height,
-        0.1,
-        100,
-      ),
-    [],
-  );
+  const sideCamRef = useRef<TPerspectiveCamera>(null);
+  if (sideCamRef.current === null) {
+    sideCamRef.current = new PerspectiveCamera(40, 1, 0.1, 100);
+  }
 
-  // Aim from the +X side (looking along −X) so depth (Z) reads left-right and
-  // the cable descent reads vertically.
   const cz = config.bridge.rodCenterZ;
   useEffect(() => {
-    sideCam.position.set(7.6, 2.9, cz + 0.05);
-    sideCam.lookAt(0.2, 1.55, cz);
+    const sideCam = sideCamRef.current;
+    if (!sideCam) return;
+    sideCam.position.set(8.4, 3.1, cz + 0.1);
+    sideCam.lookAt(0.15, 1.55, cz);
     sideCam.updateProjectionMatrix();
-  }, [sideCam, cz]);
+  }, [cz]);
 
   useFrame(() => {
-    // THREE's setViewport/setScissor take CSS pixels and apply the pixel ratio
-    // internally, so work in CSS units here.
+    const sideCam = sideCamRef.current;
+    if (!sideCam) return;
+    const swapped = getState().sideViewSwapped;
+    const mainCam = swapped ? sideCam : camera;
+    const insetCam = swapped ? camera : sideCam;
+    const { left, top, width, height } = SIDE_VIEW_RECT;
+
+    // Only sideCam's aspect is ours to change; R3F keeps `camera` synced.
+    sideCam.aspect = swapped
+      ? size.width / size.height
+      : width / height;
+    sideCam.updateProjectionMatrix();
 
     // main view — full frame
     gl.setScissorTest(false);
     gl.setViewport(0, 0, size.width, size.height);
-    gl.render(scene, camera);
+    gl.render(scene, mainCam);
 
-    // side inset — viewport origin is bottom-left
-    const { left, top, width, height } = SIDE_VIEW_RECT;
+    // inset — viewport origin is bottom-left
     renderInset(
       gl,
       scene,
-      sideCam,
+      insetCam,
       left,
       size.height - top - height,
       width,

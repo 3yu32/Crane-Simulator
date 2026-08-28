@@ -7,7 +7,7 @@ import { CraneControls } from "./components/Controls/CraneControls";
 import { ArmControls } from "./components/Controls/ArmControls";
 import { PrizeControls } from "./components/Controls/PrizeControls";
 import { DebugPanel } from "./components/Debug/DebugPanel";
-import { useGameState } from "./game/gameStore";
+import { toggleSideView, useGameState } from "./game/gameStore";
 import "./App.css";
 
 function PrizeGetBanner() {
@@ -17,6 +17,25 @@ function PrizeGetBanner() {
     <div className="prize-get">
       <span>PRIZE GET!</span>
     </div>
+  );
+}
+
+/**
+ * Clickable frame over the inset view the WebGL canvas renders here (its
+ * position must match SIDE_VIEW_RECT in components/SideView.tsx). Clicking it
+ * swaps the inset with the full-screen view.
+ */
+function InsetFrame() {
+  const swapped = useGameState((s) => s.sideViewSwapped);
+  return (
+    <button
+      type="button"
+      className="side-view-frame"
+      onClick={() => toggleSideView()}
+      title="クリックでメイン画面と入れ替え"
+    >
+      <span>{swapped ? "MAIN ⤢" : "SIDE ⤢"}</span>
+    </button>
   );
 }
 
@@ -31,11 +50,7 @@ export default function App() {
       <PrizeGetBanner />
       <ArmControls />
       <PrizeControls />
-      {/* Frame/label over the side-view inset the WebGL canvas renders here
-          (position must match SIDE_VIEW_RECT in components/SideView.tsx). */}
-      <div className="side-view-frame">
-        <span>SIDE</span>
-      </div>
+      <InsetFrame />
       <CraneControls />
       <DebugPanel />
     </div>

@@ -123,6 +123,8 @@ export interface GameConfig {
     bendAngle: number;
     /** Grip-tip length. */
     gripLength: number;
+    /** Grip-tip thickness (its X cross-section); adjustable on the ARM panel. */
+    gripThickness: number;
     /** Bar cross-section: thickness (X) and depth (Z). */
     armThickness: number;
     armDepth: number;
@@ -255,6 +257,7 @@ export const gameConfig: GameConfig = {
     upperTilt: 0.12,
     bendAngle: 0.78,
     gripLength: 0.09,
+    gripThickness: 0.028,
     armThickness: 0.05,
     armDepth: 0.12,
     pivotSpan: 0.58,
