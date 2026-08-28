@@ -7,12 +7,7 @@
 import { useEffect, useRef, useMemo, type RefObject } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import {
-  Physics,
-  usePrismaticJoint,
-  useRapier,
-  type RapierRigidBody,
-} from "@react-three/rapier";
+import { Physics, useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { Vector3 } from "three";
 import type { GameConfig } from "../config/gameConfig";
 import { useDebugConfig } from "../game/useDebugConfig";
@@ -121,29 +116,17 @@ function World({ config }: { config: GameConfig }) {
   const carriageRef = useRef<RapierRigidBody>(null);
   const hubRef = useRef<RapierRigidBody>(null);
   const prizeRef = useRef<RapierRigidBody>(null);
-  const clawOpenRef = useRef<boolean>(true);
+  // Claws are spring-loaded closed by default (see ClawAssembly).
+  const clawOpenRef = useRef<boolean>(false);
+  // Peak prong contact-force magnitude since the last physics step.
+  const contactForceRef = useRef<number>(0);
   const resetPrizeRef: RefObject<(() => void) | null> = useRef(null);
-
-  const { crane } = config;
-
-  // The cable: a Y-axis prismatic joint carriage→hub whose position motor is
-  // the winch. Limits keep the hub within [lowestY, topY] whatever the motor does.
-  const winchJoint = usePrismaticJoint(
-    carriageRef as RefObject<RapierRigidBody>,
-    hubRef as RefObject<RapierRigidBody>,
-    [
-      new Vector3(0, 0, 0),
-      new Vector3(0, 0, 0),
-      new Vector3(0, 1, 0),
-      [crane.lowestY - crane.carriageY, crane.topY - crane.carriageY],
-    ],
-  );
 
   useCraneController(
     {
       carriageRef,
       hubRef,
-      winchJointRef: winchJoint,
+      contactForceRef,
       prizeRef,
       clawOpenRef,
       resetPrizeRef,
@@ -172,6 +155,7 @@ function World({ config }: { config: GameConfig }) {
         carriageRef={carriageRef}
         hubRef={hubRef}
         clawOpenRef={clawOpenRef}
+        contactForceRef={contactForceRef}
         clawKey={`${config.claw.friction}`}
       />
       <GoalMarker config={config} />

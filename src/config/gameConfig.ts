@@ -64,13 +64,10 @@ export interface GameConfig {
     lowestY: number;
 
     /**
-     * The claw head hangs from the carriage on a simulated cable: a prismatic
-     * (Y-axis) joint whose position motor is the winch. These are the winch
-     * spring constant and damping (force-based, N/m and N·s/m).
+     * Nominal weight the cable holds while the claw hangs (kg-equivalent, used
+     * for the tension readout / descent-stop). Not a physical body mass — the
+     * hub is kinematic.
      */
-    cableStiffness: number;
-    cableDamping: number;
-    /** Mass of the dynamic claw hub. */
     hubMass: number;
     /**
      * While lowering, the descent stops once the cable tension (N) drops below
@@ -90,33 +87,45 @@ export interface GameConfig {
   claw: {
     /** Number of prongs. The rig is built for 2. */
     count: number;
-    /** Motor target angle (rad) for the open pose, magnitude. */
+    /** Motor-driven open angle (rad), magnitude — the fixed open pose. */
     openAngle: number;
-    /** Motor target angle (rad) for the closed pose, magnitude (squeeze). */
+    /** Rest (spring) target angle (rad), magnitude — the closed / squeeze pose. */
     closedAngle: number;
 
-    /** Position motor stiffness (spring constant). Limits closing force. */
-    motorStiffness: number;
-    /** Position motor damping. */
-    motorDamping: number;
     /**
-     * Nominal "max impulse" budget for the closing motor. Rapier's JS binding
-     * has no setMotorMaxForce, so this is applied by clamping stiffness; it is
-     * kept as an explicit tuning knob (spec section 9).
+     * Spring that holds each prong closed. `motorStiffness` is the elastic
+     * constant ("Arm Power"): the residual force when a prize wedges the
+     * prongs open is `motorStiffness × angleError`, i.e. the grip strength.
+     * Closing is *only* this spring — no active drive (spec §9).
      */
+    motorStiffness: number;
+    motorDamping: number;
+    /** Fixed strong motor used only to push the prongs to `openAngle`. */
+    openStiffness: number;
+    openDamping: number;
+    /** Reserved tuning knob (spec §9); no direct setMotorMaxForce in the JS API. */
     motorMaxImpulse: number;
 
     friction: number;
     restitution: number;
 
-    /** Length of the main arm segment. */
+    /**
+     * Each prong is a flat two-segment dogleg (UFO-catcher style): an upper
+     * segment from the pivot, a bend, then a lower segment to a small grip tip.
+     */
+    /** Upper segment length. */
     armLength: number;
-    /** Square cross-section side of the arm. */
+    /** Lower segment length. */
+    lowerLength: number;
+    /** Outward lean of the upper segment (rad). */
+    upperTilt: number;
+    /** Bend between the two segments (rad); the lower segment turns inward. */
+    bendAngle: number;
+    /** Grip-tip length. */
+    gripLength: number;
+    /** Bar cross-section: thickness (X) and depth (Z). */
     armThickness: number;
-    /** Length of the angled tip segment. */
-    tipLength: number;
-    /** Inward tilt of the tip segment (rad). */
-    tipAngle: number;
+    armDepth: number;
     /** Distance between the two pivots on the hub, along X. */
     pivotSpan: number;
     /** Mass of a single claw prong. */
@@ -219,34 +228,37 @@ export const gameConfig: GameConfig = {
     topY: 3.0,
     lowestY: 1.66,
 
-    cableStiffness: 220,
-    cableDamping: 20,
     hubMass: 0.9,
     descentTensionStop: 6,
 
     settleTime: 0.8,
     releaseTime: 0.7,
-    openTime: 0.5,
+    openTime: 0.35,
   },
 
   claw: {
     count: 2,
-    openAngle: 0.3,
-    closedAngle: 0.66,
+    openAngle: 0.36,
+    closedAngle: 0.02,
 
-    motorStiffness: 420,
-    motorDamping: 42,
+    motorStiffness: 32,
+    motorDamping: 4,
+    openStiffness: 140,
+    openDamping: 12,
     motorMaxImpulse: 12,
 
     friction: 3.0,
     restitution: 0.0,
 
-    armLength: 0.72,
-    armThickness: 0.06,
-    tipLength: 0.3,
-    tipAngle: 0.85,
-    pivotSpan: 0.48,
-    mass: 0.32,
+    armLength: 0.42,
+    lowerLength: 0.4,
+    upperTilt: 0.12,
+    bendAngle: 0.78,
+    gripLength: 0.09,
+    armThickness: 0.05,
+    armDepth: 0.12,
+    pivotSpan: 0.58,
+    mass: 0.3,
     linearDamping: 0.4,
     angularDamping: 0.8,
   },

@@ -23,11 +23,11 @@ interface SliderSpec {
 const SLIDERS: SliderSpec[] = [
   {
     key: "armPower",
-    label: "アームパワー",
-    min: 20,
-    max: 1200,
-    step: 10,
-    format: (v) => String(Math.round(v)),
+    label: "アームパワー (バネ)",
+    min: 0.5,
+    max: 120,
+    step: 0.5,
+    format: (v) => v.toFixed(1),
   },
   {
     key: "descentLimitY",

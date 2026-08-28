@@ -110,12 +110,15 @@ export function enabledButtons(state: CraneState): {
   };
 }
 
-/** Whether the claws should be commanded open in this state. */
+/**
+ * Whether the opening motor should be driving the claws open in this state.
+ * The claws are spring-loaded closed (see ClawAssembly): the motor only pushes
+ * them open while reaching down for the prize and while releasing it. Every
+ * other state — idle, positioning, gripping, carrying — leaves the springs to
+ * hold the claws closed.
+ */
 export function clawShouldBeOpen(state: CraneState): boolean {
-  // Open everywhere except while actively gripping / carrying.
-  return !(
-    state === "CLOSING" ||
-    state === "LIFTING" ||
-    state === "RETURNING"
+  return (
+    state === "OPENING" || state === "DESCENDING" || state === "RELEASING"
   );
 }

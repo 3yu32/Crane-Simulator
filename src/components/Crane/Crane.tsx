@@ -1,10 +1,7 @@
 /**
- * The crane rig (spec §8): a kinematic carriage up top, a dynamic claw hub
- * hanging from it on a simulated cable, the cable visual, and the two-prong
- * claw assembly jointed to the hub.
- *
- * The cable constraint itself (a Y-axis prismatic joint whose position motor is
- * the winch) is created in `GameScene`'s World so the controller can drive it.
+ * The crane rig (spec §8): a kinematic carriage up top, the kinematic claw hub
+ * hanging below it (the winch pays it out / in), the cable visual, and the
+ * two-prong claw assembly jointed to the hub.
  */
 
 import type { RefObject } from "react";
@@ -20,6 +17,7 @@ interface CraneProps {
   carriageRef: RefObject<RapierRigidBody | null>;
   hubRef: RefObject<RapierRigidBody | null>;
   clawOpenRef: RefObject<boolean>;
+  contactForceRef: RefObject<number>;
   /** Remount key for the claw assembly (collider props that need a rebuild). */
   clawKey: string;
 }
@@ -29,6 +27,7 @@ export function Crane({
   carriageRef,
   hubRef,
   clawOpenRef,
+  contactForceRef,
   clawKey,
 }: CraneProps) {
   const { crane } = config;
@@ -42,6 +41,7 @@ export function Crane({
         config={config}
         hubRef={hubRef}
         clawOpenRef={clawOpenRef}
+        contactForceRef={contactForceRef}
         hubPosition={[crane.homeX, crane.homeY, crane.homeZ]}
       />
     </>

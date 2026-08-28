@@ -9,7 +9,7 @@
  * clamp.
  */
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import {
   useBeforePhysicsStep,
   useRapier,
@@ -22,10 +22,12 @@ import { Claw } from "./Claw";
 
 interface ClawAssemblyProps {
   config: GameConfig;
-  /** The dynamic claw hub the prongs are jointed to. */
+  /** The kinematic claw hub the prongs are jointed to. */
   hubRef: RefObject<RapierRigidBody | null>;
   /** Open (true) / closed (false) command from the crane controller. */
   clawOpenRef: RefObject<boolean>;
+  /** Prongs report their peak contact-force magnitude here each step. */
+  contactForceRef: RefObject<number>;
   /** Hub position at mount time, for placing the prong bodies. */
   hubPosition: [number, number, number];
 }
@@ -34,6 +36,7 @@ export function ClawAssembly({
   config,
   hubRef,
   clawOpenRef,
+  contactForceRef,
   hubPosition,
 }: ClawAssemblyProps) {
   const { claw } = config;
@@ -64,39 +67,53 @@ export function ClawAssembly({
     new Vector3(0, 0, 1),
   ]);
 
-  const modelSet = useRef(false);
-
-  useEffect(() => {
-    modelSet.current = false;
-  }, [claw.motorStiffness, claw.motorDamping]);
-
   useBeforePhysicsStep(() => {
     const lj = leftJoint.current;
     const rj = rightJoint.current;
     if (!lj || !rj) return;
 
-    if (!modelSet.current) {
-      // Acceleration-based: stiffness/damping behave like a spring frequency,
-      // giving a firm but finite hold. Contact forces from a wedged prize can
-      // still stall the prongs before they reach the closed angle.
-      lj.configureMotorModel(rapier.MotorModel.AccelerationBased);
-      rj.configureMotorModel(rapier.MotorModel.AccelerationBased);
-      modelSet.current = true;
-    }
+    // Force-based: stiffness / damping are real N·m/rad and N·m·s/rad, so the
+    // spring torque (= grip force when a prize wedges the prongs) is literally
+    // `motorStiffness × angleError`. Re-set every step (cheap, and robust to
+    // HMR / re-mounts).
+    lj.configureMotorModel(rapier.MotorModel.ForceBased);
+    rj.configureMotorModel(rapier.MotorModel.ForceBased);
 
-    const open = clawOpenRef.current;
     // Left prong: open swings the tip outward (−angle), close swings it in (+).
     // Right prong is mirrored.
-    const leftTarget = open ? -claw.openAngle : claw.closedAngle;
-    const rightTarget = open ? claw.openAngle : -claw.closedAngle;
-
-    lj.configureMotorPosition(leftTarget, claw.motorStiffness, claw.motorDamping);
-    rj.configureMotorPosition(
-      rightTarget,
-      claw.motorStiffness,
-      claw.motorDamping,
-    );
+    //
+    // OPEN  → a fixed, strong motor pushes each prong to `openAngle`.
+    // CLOSE → no drive; a spring (stiffness = motorStiffness = "Arm Power")
+    //         pulls each prong toward `closedAngle`. Whatever it wedges against
+    //         (the prize) sets the grip force = stiffness × angleError.
+    if (clawOpenRef.current) {
+      lj.configureMotorPosition(
+        -claw.openAngle,
+        claw.openStiffness,
+        claw.openDamping,
+      );
+      rj.configureMotorPosition(
+        claw.openAngle,
+        claw.openStiffness,
+        claw.openDamping,
+      );
+    } else {
+      lj.configureMotorPosition(
+        claw.closedAngle,
+        claw.motorStiffness,
+        claw.motorDamping,
+      );
+      rj.configureMotorPosition(
+        -claw.closedAngle,
+        claw.motorStiffness,
+        claw.motorDamping,
+      );
+    }
   });
+
+  const reportForce = (m: number) => {
+    if (m > contactForceRef.current) contactForceRef.current = m;
+  };
 
   return (
     <>
@@ -105,12 +122,14 @@ export function ClawAssembly({
         config={config}
         side="left"
         pivotPosition={[hx - halfSpan, hy, hz]}
+        onContactForce={reportForce}
       />
       <Claw
         ref={rightRef}
         config={config}
         side="right"
         pivotPosition={[hx + halfSpan, hy, hz]}
+        onContactForce={reportForce}
       />
     </>
   );

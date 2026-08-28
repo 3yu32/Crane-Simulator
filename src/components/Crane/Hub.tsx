@@ -1,8 +1,8 @@
 /**
- * The claw hub: a dynamic body that hangs from the carriage on the simulated
- * cable (a Y-axis prismatic joint with a position motor — see CraneRig). The
- * two prongs are jointed to this body. Its rotation is locked so it stays
- * upright; only the winch moves it vertically.
+ * The claw hub — the moving head the two prongs are jointed to. It is a
+ * kinematic-position body: the controller drives its X/Z (with the carriage)
+ * and its Y (the winch pays cable out / in). Keeping it kinematic makes it a
+ * solid rotational anchor for the prong motors.
  */
 
 import { forwardRef } from "react";
@@ -23,25 +23,29 @@ export const Hub = forwardRef<RapierRigidBody, HubProps>(function Hub(
   ref,
 ) {
   const { crane } = config;
-  const hubHalfX = Math.max(0.14, config.claw.pivotSpan / 2 + 0.05);
+  const halfX = config.claw.pivotSpan / 2 + 0.12;
+  const halfY = 0.09;
+  const halfZ = 0.15;
 
   return (
     <RigidBody
       ref={ref}
-      type="dynamic"
+      type="kinematicPosition"
       colliders={false}
       collisionGroups={CRANE_GROUPS}
       position={[crane.homeX, crane.homeY, crane.homeZ]}
-      mass={crane.hubMass}
-      enabledRotations={[false, false, false]}
-      linearDamping={0.6}
       ccd={config.physics.ccd}
-      canSleep={false}
     >
-      <CuboidCollider args={[hubHalfX, 0.06, 0.1]} position={[0, 0, 0]} />
-      <mesh castShadow>
-        <boxGeometry args={[hubHalfX * 2, 0.12, 0.2]} />
-        <meshStandardMaterial color="#9aa1b0" metalness={0.5} roughness={0.4} />
+      <CuboidCollider args={[halfX, halfY, halfZ]} position={[0, 0, 0]} />
+      {/* rounded head shell */}
+      <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+        <capsuleGeometry args={[halfZ * 1.05, halfX * 1.7, 6, 16]} />
+        <meshStandardMaterial color="#eef1f6" roughness={0.4} metalness={0.1} />
+      </mesh>
+      {/* pink accent strip on top */}
+      <mesh position={[0, halfY + 0.02, 0]}>
+        <boxGeometry args={[halfX * 1.6, 0.03, halfZ * 1.2]} />
+        <meshStandardMaterial color="#e24a8f" roughness={0.5} />
       </mesh>
     </RigidBody>
   );

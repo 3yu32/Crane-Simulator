@@ -122,23 +122,23 @@ describe("enabledButtons", () => {
 });
 
 describe("clawShouldBeOpen", () => {
-  it("is closed only while gripping and carrying", () => {
-    expect(clawShouldBeOpen("CLOSING")).toBe(false);
-    expect(clawShouldBeOpen("LIFTING")).toBe(false);
-    expect(clawShouldBeOpen("RETURNING")).toBe(false);
+  it("drives open only while reaching for and releasing the prize", () => {
+    expect(clawShouldBeOpen("OPENING")).toBe(true);
+    expect(clawShouldBeOpen("DESCENDING")).toBe(true);
+    expect(clawShouldBeOpen("RELEASING")).toBe(true);
   });
-  it("is open in every other state", () => {
+  it("leaves the springs to hold the claws closed everywhere else", () => {
     for (const s of [
       "IDLE",
       "MOVING_X",
       "WAITING_Z",
       "MOVING_Z",
-      "OPENING",
-      "DESCENDING",
-      "RELEASING",
+      "CLOSING",
+      "LIFTING",
+      "RETURNING",
       "RESETTING",
     ] as CraneState[]) {
-      expect(clawShouldBeOpen(s)).toBe(true);
+      expect(clawShouldBeOpen(s)).toBe(false);
     }
   });
 });

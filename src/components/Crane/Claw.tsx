@@ -1,7 +1,11 @@
 /**
- * One claw prong: a dynamic rigid body made of two box colliders — a straight
- * upper arm and an inward-angled tip (spec §10). It hangs from the hub and is
- * driven only through its revolute joint motor; nothing parents the prize to it.
+ * One claw prong (spec §10): a flat two-segment dogleg, like a UFO-catcher
+ * arm — an upper segment from the pivot, a bend, then a lower segment ending
+ * in a small grip tip. Colliders match the visible bars. Dynamic body; driven
+ * only through its revolute joint (spring closed / motor open).
+ *
+ * Local frame: pivot at the origin, segments hang down (−Y). φ is a segment's
+ * angle from straight-down, positive toward +X.
  */
 
 import { forwardRef } from "react";
@@ -20,20 +24,57 @@ interface ClawProps {
   side: ClawSide;
   /** World-space position of the pivot at mount time. */
   pivotPosition: [number, number, number];
+  /** Called with the total contact-force magnitude (N) on each contact event. */
+  onContactForce: (magnitude: number) => void;
 }
 
 export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
-  { config, side, pivotPosition },
+  { config, side, pivotPosition, onContactForce },
   ref,
 ) {
   const { claw, physics } = config;
   const sign = side === "left" ? 1 : -1;
-  const t = claw.armThickness;
-  const half = t / 2;
+  const tx = claw.armThickness;
+  const tz = claw.armDepth;
 
-  const armCenterY = -claw.armLength / 2;
-  const tipCenterY = -claw.armLength - (claw.tipLength / 2) * Math.cos(claw.tipAngle);
-  const tipCenterX = sign * (claw.tipLength / 2) * Math.sin(claw.tipAngle);
+  // Segment angles (from -Y, +φ toward +X). Upper leans out, lower turns in.
+  const phiUpper = -sign * claw.upperTilt;
+  const phiLower = sign * (claw.bendAngle - claw.upperTilt);
+
+  const upperEnd: [number, number] = [
+    claw.armLength * Math.sin(phiUpper),
+    -claw.armLength * Math.cos(phiUpper),
+  ];
+  const lowerEnd: [number, number] = [
+    upperEnd[0] + claw.lowerLength * Math.sin(phiLower),
+    upperEnd[1] - claw.lowerLength * Math.cos(phiLower),
+  ];
+
+  const upperMid: [number, number, number] = [
+    (claw.armLength / 2) * Math.sin(phiUpper),
+    -(claw.armLength / 2) * Math.cos(phiUpper),
+    0,
+  ];
+  const lowerMid: [number, number, number] = [
+    upperEnd[0] + (claw.lowerLength / 2) * Math.sin(phiLower),
+    upperEnd[1] - (claw.lowerLength / 2) * Math.cos(phiLower),
+    0,
+  ];
+  const gripMid: [number, number, number] = [
+    lowerEnd[0] + (claw.gripLength / 2) * Math.sin(phiLower),
+    lowerEnd[1] - (claw.gripLength / 2) * Math.cos(phiLower),
+    0,
+  ];
+
+  const barMat = (
+    <meshStandardMaterial
+      color="#dfe4ee"
+      transparent
+      opacity={0.72}
+      roughness={0.15}
+      metalness={0.1}
+    />
+  );
 
   return (
     <RigidBody
@@ -47,36 +88,43 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
       restitution={claw.restitution}
       linearDamping={claw.linearDamping}
       angularDamping={claw.angularDamping}
+      onContactForce={(p) => onContactForce(p.totalForceMagnitude)}
       ccd={physics.ccd}
       canSleep={false}
     >
-      {/* upper arm */}
       <CuboidCollider
-        args={[half, claw.armLength / 2, half]}
-        position={[0, armCenterY, 0]}
+        args={[tx / 2, claw.armLength / 2, tz / 2]}
+        position={upperMid}
+        rotation={[0, 0, phiUpper]}
         friction={claw.friction}
         restitution={claw.restitution}
       />
-      {/* angled tip — wider than the arm for a better cradle under the prize */}
       <CuboidCollider
-        args={[half * 1.5, claw.tipLength / 2, half * 1.8]}
-        position={[tipCenterX, tipCenterY, 0]}
-        rotation={[0, 0, sign * claw.tipAngle]}
+        args={[tx / 2, claw.lowerLength / 2, tz / 2]}
+        position={lowerMid}
+        rotation={[0, 0, phiLower]}
+        friction={claw.friction}
+        restitution={claw.restitution}
+      />
+      <CuboidCollider
+        args={[tx * 0.9, claw.gripLength / 2, tz * 0.75]}
+        position={gripMid}
+        rotation={[0, 0, phiLower]}
         friction={claw.friction}
         restitution={claw.restitution}
       />
 
-      <mesh position={[0, armCenterY, 0]} castShadow>
-        <boxGeometry args={[t, claw.armLength, t]} />
-        <meshStandardMaterial color="#c2c8d4" metalness={0.5} roughness={0.35} />
+      <mesh position={upperMid} rotation={[0, 0, phiUpper]} castShadow>
+        <boxGeometry args={[tx, claw.armLength, tz]} />
+        {barMat}
       </mesh>
-      <mesh
-        position={[tipCenterX, tipCenterY, 0]}
-        rotation={[0, 0, sign * claw.tipAngle]}
-        castShadow
-      >
-        <boxGeometry args={[t * 1.5, claw.tipLength, t * 1.8]} />
-        <meshStandardMaterial color="#d9dde6" metalness={0.5} roughness={0.35} />
+      <mesh position={lowerMid} rotation={[0, 0, phiLower]} castShadow>
+        <boxGeometry args={[tx, claw.lowerLength, tz]} />
+        {barMat}
+      </mesh>
+      <mesh position={gripMid} rotation={[0, 0, phiLower]} castShadow>
+        <boxGeometry args={[tx * 1.8, claw.gripLength, tz * 1.5]} />
+        <meshStandardMaterial color="#c7a24a" roughness={0.5} metalness={0.4} />
       </mesh>
     </RigidBody>
   );

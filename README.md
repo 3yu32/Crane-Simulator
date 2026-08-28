@@ -15,8 +15,8 @@
 - 橋渡し（4 本の平行な棒、左右の壁いっぱいまで横向きに延びる）の上に縦長の箱型景品が乗っている
 - プレイヤーは「右」「奥」の 2 ボタンでクレーンの X / Z 位置を決める
 - 位置確定後、クレーンが自動で下降 → 爪を閉じる → 上昇 → ホームへ戻る → 爪を開く
-- 景品は爪へ強制追従させず、**爪との接触・摩擦だけ**で持ち上がる
-  （掴みが甘ければ途中で滑り落ちる ＝ 正常な挙動）
+- 爪は**バネで閉じた状態**が基本。開くときだけモーターが決まった角度まで押し開き、閉じるときはバネの弾性力（＝アームパワー）で自然に閉じる
+- 景品は爪へ強制追従させず、**爪との接触・摩擦だけ**で持ち上がる（掴みが甘ければ滑り落ちる）
 - 景品が棒から落ちて機体内の床に乗れば（床全体が獲得口）`PRIZE GET!`
 
 ## 2. 使用技術
@@ -75,7 +75,7 @@ npm run lint      # oxlint
 
 | スライダー | 対応パラメータ | 内容 |
 | --- | --- | --- |
-| **アームパワー** | `claw.motorStiffness` | 爪モーターの強さ（掴む力・閉じる力）。20〜1200 |
+| **アームパワー (バネ)** | `claw.motorStiffness` | 爪を閉じるバネの弾性力（＝掴む力）。ForceBased で 0.5〜120。小さいほど弱く掴む→滑りやすい |
 | **下降リミット (Y)** | `crane.lowestY` | 爪ハブが下降できる最下点（ハード制限）。1.2〜2.8 |
 | **下降停止 張力 (N)** | `crane.descentTensionStop` | 下降中に糸の張力がこの値を下回ったら停止（爪が景品・棒に乗って糸がたるんだ状態）。0〜30 |
 
@@ -142,20 +142,22 @@ src/
 | 棒（×4） | **kinematicPosition** | Cylinder | X 方向（横向き）に壁から壁まで。1 本ずつドラッグで高さ / 奥行(Z) を変更（`bridgeControls.rods`）|
 | 景品 | **dynamic** | Cuboid | 回転ロックなし。CCD 有効。摩擦・質量・damping すべて設定可 |
 | トロリー（carriage） | **kinematicPosition** | Cuboid | 実機の X/Z モーター相当。Y は固定。毎ステップ `setNextKinematicTranslation` |
-| 爪ハブ（hub） | **dynamic** | Cuboid | 回転ロック。糸（下記）で吊られ、上下は物理で決まる |
-| 爪（×2） | **dynamic** | アーム＋爪先の 2 Cuboid | Hub と Revolute Joint で接続 |
+| 爪ハブ（hub） | **kinematicPosition** | Cuboid | 丸みのある UFO キャッチャー型の頭部。X/Z＋Y（巻き上げ）を毎ステップ駆動 |
+| 爪（×2） | **dynamic** | 上下 2 セグメント＋爪先の 3 Cuboid（薄い U 字ドッグレッグ）| Hub と Revolute Joint で接続。バネで閉／モーターで開 |
 | 床・壁・枠 | fixed | Cuboid | 床は穴なしの一枚板。床全体が獲得判定領域 |
 
-- **上下動＝糸巻き（winch）** … 爪ハブはトロリーから **Y 軸 Prismatic Joint** で吊られ、
-  その **position motor**（ForceBased）が糸の巻き上げ／繰り出しです。目標長を毎ステップ
-  更新することでハブが上下します。Prismatic の limit で `[lowestY, topY]` の範囲外へは出ません。
-- **下降停止（糸のたるみ検出）** … Rapier の JS 版はジョイント反力を取得できないため、
-  張力はキネマティックに推定します：ハブが巻き出し速度に追従している間は「糸は張っていて
-  吊り荷重（≈ 15 N）を保持」、爪が景品・棒に乗ってハブが追従しなくなると張力は 0 付近へ低下。
-  数フレーム連続で `descentTensionStop` を下回ったら下降を停止します（spec §15）。
-- **爪の開閉** … `Revolute Joint` ＋ `configureMotorPosition`（AccelerationBased）。
-  モーターは「無限に強くない」ため、景品が爪の間にあるとモーター力 vs 景品の抵抗で
-  完全には閉じきらず、強く掴む／弱く掴む／途中で滑る、が自然に発生します（spec §9）。
+- **上下動＝糸巻き（winch）** … 爪ハブはキネマティックで、コントローラが Y を巻き上げ速度で
+  下降／上昇させます（spec §3：X/Z/Y はモーター制御可）。キネマティックにすることで
+  プロングのモーターに確実な反力アンカーを与えます。
+- **下降停止（糸のたるみ検出）** … 張力 ≈ 吊り荷重 − プロングが下に押し付ける接触力。
+  爪が景品・棒に着地すると接触力が増え張力が 0 付近へ低下。数フレーム連続で
+  `descentTensionStop` を下回ったら下降を停止（spec §15）。
+- **爪の開閉（バネ機構）** … 各プロングは Hub と Revolute Joint で接続。
+  - 閉：モーター OFF。`configureMotorPosition(closedAngle, motorStiffness, …)`（ForceBased）を
+    「バネ」として使い、`motorStiffness` が弾性定数＝アームパワー。景品が挟まると
+    残留トルク `motorStiffness × 角度誤差` がそのまま掴む力になる（spec §9）。
+  - 開：固定強度モーター `openStiffness` で `openAngle` まで押し開く（OPENING/DESCENDING/RELEASING のみ）。
+  - 左右のプロングは互いに衝突させない（長い U 字が中央で重なって固まるのを防ぐ）。
 - **把持** … 景品を爪の子にしたり座標を強制代入したりはしていません（spec §31）。
   景品が持ち上がるのは 2 本の爪との接触力・摩擦のみによります。移動中に滑り落ちるのも正常。
 - **衝突フィルタ** … Hub と爪はジョイントで重なるため相互に衝突させません
@@ -183,14 +185,14 @@ spec のまま変更していません。
 | `crane.returnSpeed` | 0.9 | ホーム復帰速度 (m/s) |
 | `crane.carriageY` | 3.55 | トロリー（糸の吊り元）の固定 Y |
 | `crane.lowestY / topY` | 1.66 / 3.0 | 爪ハブの Y 可動域（＝Descent Limit Y） |
-| `crane.cableStiffness / cableDamping` | 220 / 20 | 糸巻きモーター（ForceBased）の剛性・減衰 |
-| `crane.hubMass` | 0.9 | 爪ハブの質量 |
+| `crane.hubMass` | 0.9 | 糸が保持する公称荷重（張力表示・下降停止用） |
 | `crane.descentTensionStop` | 6 | 糸の張力 (N) がこれを下回ると下降停止（spec §15） |
 | `goal.center / halfExtents` | 床全体 | 景品がこの薄いスラブ（床直上）に入れば獲得 |
-| `claw.openAngle / closedAngle` | 0.30 / 0.66 rad | 爪モーターの目標角（開／閉） |
-| `claw.motorStiffness / motorDamping` | 420 / 42 | 爪モーターの剛性・減衰（＝Arm Power／掴む強さ） |
+| `claw.openAngle / closedAngle` | 0.36 / 0.02 rad | 開＝モーター目標角、閉＝バネの目標角 |
+| `claw.motorStiffness` | 32 | 閉じバネの弾性定数＝アームパワー（ForceBased, N·m/rad） |
+| `claw.openStiffness` | 140 | 開くとき用の固定モーター強度 |
 | `claw.friction` | 3.0 | 爪の摩擦係数 |
-| `claw.pivotSpan` | 0.48 | 2 つの支点間の距離（景品幅より広く、下降時に干渉しない） |
+| `claw.pivotSpan` | 0.58 | 支点間距離（閉じても爪先どうしが貫通せず少し隙間が残る） |
 | `prize.width / height / depth` | 0.30 / 0.58 / 0.30 | 景品サイズ |
 | `prize.mass` | 0.34 | 景品の質量 |
 | `prize.friction` | 1.3 | 景品の摩擦係数 |

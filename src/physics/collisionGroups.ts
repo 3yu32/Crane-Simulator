@@ -22,8 +22,9 @@ const GROUP_WORLD = 2;
 /** Crane body: collides with the world only (not with the claws). */
 export const CRANE_GROUPS = interactionGroups([GROUP_CRANE], [GROUP_WORLD]);
 
-/** Claw bodies: collide with each other and the world, but not the crane. */
-export const CLAW_GROUPS = interactionGroups(
-  [GROUP_CLAW],
-  [GROUP_CLAW, GROUP_WORLD],
-);
+/**
+ * Claw bodies: collide with the world only — not the crane, and not each other.
+ * The two long dogleg prongs overlap near the centre when closed; letting them
+ * collide just jams them together and starves the prong motors.
+ */
+export const CLAW_GROUPS = interactionGroups([GROUP_CLAW], [GROUP_WORLD]);
