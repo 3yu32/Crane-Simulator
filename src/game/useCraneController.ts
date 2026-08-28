@@ -49,6 +49,8 @@ interface ControllerRuntime {
   lastResetNonce: number;
   /** Consecutive DESCENDING steps reading the cable slack. */
   slackStreak: number;
+  /** Low-pass-filtered prong contact force (N). */
+  contactEMA: number;
 }
 
 const EPS = 1e-3;
@@ -58,6 +60,14 @@ const DESCEND_MARGIN = 0.1;
 const SLACK_STREAK_TO_STOP = 2;
 /** Fraction of the hung weight in contact force that halts the descent at once. */
 const HARD_CONTACT_FRACTION = 0.55;
+/**
+ * Per-step smoothing for the contact force. The cable does not go slack the
+ * instant a prong bumps something — it slackens only as the claw settles its
+ * weight onto the obstacle. So we feed the descent-stop a low-pass average
+ * (~5-frame time constant) instead of the raw per-step peak, which a single
+ * impact spike would otherwise use to zero the tension.
+ */
+const CONTACT_SMOOTH = 0.2;
 
 function approach(current: number, target: number, maxDelta: number): number {
   const d = target - current;
@@ -81,6 +91,7 @@ export function useCraneController(
     timer: 0,
     lastResetNonce: 0,
     slackStreak: 0,
+    contactEMA: 0,
   });
 
   useEffect(() => {
@@ -96,20 +107,26 @@ export function useCraneController(
     const dt = physics.timeStep;
     const store = getState();
 
-    // Consume the contact force accumulated during the previous step.
+    // Consume the contact force accumulated during the previous step, and fold
+    // it into a low-pass average. A single-frame impact spike hardly moves the
+    // average; a prong that has actually come to rest ramps it up over a few
+    // frames.
     const contactForce = contactForceRef.current;
     contactForceRef.current = 0;
+    r.contactEMA += (contactForce - r.contactEMA) * CONTACT_SMOOTH;
+    const smoothForce = r.contactEMA;
 
     const dispatch = (event: CraneEvent) => {
       r.state = craneReducer(r.state, event);
       r.timer = 0;
       r.slackStreak = 0;
+      r.contactEMA = 0;
     };
 
     // "Cable tension": full hung weight, minus how hard the prongs are pressing
-    // on something below. Drops toward 0 as the claw lands.
+    // on something below (smoothed). Drops toward 0 as the claw settles.
     const hangWeight = (c.hubMass + 2 * config.claw.mass) * -config.gravity;
-    const tension = Math.max(0, hangWeight - contactForce);
+    const tension = Math.max(0, hangWeight - smoothForce);
 
     /* ---- RESET ---- */
     if (store.resetNonce !== r.lastResetNonce) {
@@ -162,7 +179,7 @@ export function useCraneController(
         // A firm contact means the whole arm is taking load: stop at once so
         // the prong joints never get dragged apart. A gentler slack reading
         // (cable going limp) still stops after a couple of frames.
-        const hardContact = contactForce > hangWeight * HARD_CONTACT_FRACTION;
+        const hardContact = smoothForce > hangWeight * HARD_CONTACT_FRACTION;
         const slackNow =
           descended > DESCEND_MARGIN && tension < c.descentTensionStop;
         r.slackStreak = slackNow ? r.slackStreak + 1 : 0;
