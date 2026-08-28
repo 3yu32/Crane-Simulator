@@ -167,6 +167,39 @@
   cursor: pointer;
 }
 
+.side-view-frame {
+  position: absolute;
+  left: 14px;
+  top: 286px;
+  width: 232px;
+  height: 138px;
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.side-view-frame span {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #8b94a3;
+}
+
+.arm-control-readout {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #2a2f3a;
+  font-size: 11px;
+  color: #c7ccd6;
+}
+
 .debug-toggle {
   position: absolute;
   top: 14px;

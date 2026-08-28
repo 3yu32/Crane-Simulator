@@ -1,10 +1,15 @@
 /**
  * Always-on-screen arm tuning (not behind debug mode): arm power, descent
- * limit and descent-stop force. Values live in the game store and feed the
- * effective GameConfig via `useDebugConfig`.
+ * limit and the cable-tension stop threshold. Values live in the game store
+ * and feed the effective GameConfig via `useDebugConfig`. Also shows the live
+ * cable tension so the stop threshold can be judged.
  */
 
-import { setArmControl, useGameState, type ArmControls as ArmControlsState } from "../../game/gameStore";
+import {
+  setArmControl,
+  useGameState,
+  type ArmControls as ArmControlsState,
+} from "../../game/gameStore";
 
 interface SliderSpec {
   key: keyof ArmControlsState;
@@ -12,7 +17,6 @@ interface SliderSpec {
   min: number;
   max: number;
   step: number;
-  /** Format the current value for display. */
   format: (v: number) => string;
 }
 
@@ -34,17 +38,18 @@ const SLIDERS: SliderSpec[] = [
     format: (v) => v.toFixed(2),
   },
   {
-    key: "descentStopForce",
-    label: "下降停止力 (0=OFF)",
+    key: "descentTensionStop",
+    label: "下降停止 張力 (N)",
     min: 0,
-    max: 120,
-    step: 1,
-    format: (v) => (v <= 0 ? "OFF" : String(Math.round(v))),
+    max: 30,
+    step: 0.5,
+    format: (v) => v.toFixed(1),
   },
 ];
 
 export function ArmControls() {
   const armControls = useGameState((s) => s.armControls);
+  const cableTension = useGameState((s) => s.cableTension);
 
   return (
     <div className="arm-controls">
@@ -60,12 +65,20 @@ export function ArmControls() {
               max={s.max}
               step={s.step}
               value={value}
-              onChange={(e) => setArmControl(s.key, e.currentTarget.valueAsNumber)}
+              onChange={(e) =>
+                setArmControl(s.key, e.currentTarget.valueAsNumber)
+              }
             />
             <span className="arm-control-value">{s.format(value)}</span>
           </label>
         );
       })}
+      <div className="arm-control-readout">
+        <span>糸の張力</span>
+        <span className="arm-control-value">
+          {Math.max(0, cableTension).toFixed(1)} N
+        </span>
+      </div>
     </div>
   );
 }

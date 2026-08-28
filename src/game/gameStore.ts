@@ -17,8 +17,8 @@ export interface ArmControls {
   armPower: number;
   /** Hard lower bound for the arm's descent (hub Y). */
   descentLimitY: number;
-  /** Claw contact force (N) that halts the descent early; 0 disables it. */
-  descentStopForce: number;
+  /** Descent stops when the cable tension (N) drops below this (cable slack). */
+  descentTensionStop: number;
 }
 
 export interface GameState {
@@ -28,6 +28,8 @@ export interface GameState {
   input: { right: boolean; back: boolean };
   /** Player-adjustable arm parameters, shown on the game screen. */
   armControls: ArmControls;
+  /** Live estimate of the winch cable tension (N), for the on-screen readout. */
+  cableTension: number;
   /** Bumped by RESET to trigger imperative re-initialisation everywhere. */
   resetNonce: number;
   /** Debug: master toggle for the tuning panel and helpers. */
@@ -45,8 +47,9 @@ const initialState: GameState = {
   armControls: {
     armPower: gameConfig.claw.motorStiffness,
     descentLimitY: gameConfig.crane.lowestY,
-    descentStopForce: gameConfig.crane.descentStopForce,
+    descentTensionStop: gameConfig.crane.descentTensionStop,
   },
+  cableTension: 0,
   resetNonce: 0,
   debug:
     typeof window !== "undefined" &&
@@ -96,6 +99,13 @@ export function setCraneState(craneState: CraneState): void {
 
 export function setPrizeGet(prizeGet: boolean): void {
   if (state.prizeGet !== prizeGet) setState({ prizeGet });
+}
+
+/** Called every physics step; only pushes an update on a visible change. */
+export function setCableTension(cableTension: number): void {
+  if (Math.abs(state.cableTension - cableTension) > 0.25) {
+    setState({ cableTension });
+  }
 }
 
 export function setDebug(debug: boolean): void {

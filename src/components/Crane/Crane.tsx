@@ -1,59 +1,49 @@
 /**
- * The crane body: carriage + vertical shaft + claw hub (spec §8). It is a single
- * kinematic-position rigid body — the motors of a real cabinet drive X/Z/Y, so
- * this part is not a full dynamic body (spec §3). The controller feeds it
- * `setNextKinematicTranslation` every physics step.
+ * The crane rig (spec §8): a kinematic carriage up top, a dynamic claw hub
+ * hanging from it on a simulated cable, the cable visual, and the two-prong
+ * claw assembly jointed to the hub.
  *
- * The rigid body's origin is the hub centre; the carriage and shaft meshes sit
- * above it in local space.
+ * The cable constraint itself (a Y-axis prismatic joint whose position motor is
+ * the winch) is created in `GameScene`'s World so the controller can drive it.
  */
 
-import { forwardRef } from "react";
-import { CuboidCollider, RigidBody, type RapierRigidBody } from "@react-three/rapier";
+import type { RefObject } from "react";
+import type { RapierRigidBody } from "@react-three/rapier";
 import type { GameConfig } from "../../config/gameConfig";
-import { CRANE_GROUPS } from "../../physics/collisionGroups";
+import { Carriage } from "./Carriage";
+import { Hub } from "./Hub";
+import { Cable } from "./Cable";
+import { ClawAssembly } from "./ClawAssembly";
 
 interface CraneProps {
   config: GameConfig;
+  carriageRef: RefObject<RapierRigidBody | null>;
+  hubRef: RefObject<RapierRigidBody | null>;
+  clawOpenRef: RefObject<boolean>;
+  /** Remount key for the claw assembly (collider props that need a rebuild). */
+  clawKey: string;
 }
 
-export const Crane = forwardRef<RapierRigidBody, CraneProps>(function Crane(
-  { config },
-  ref,
-) {
+export function Crane({
+  config,
+  carriageRef,
+  hubRef,
+  clawOpenRef,
+  clawKey,
+}: CraneProps) {
   const { crane } = config;
-  const shaftLen = 0.9;
-  const carriageY = shaftLen + 0.06;
-  const hubHalfX = Math.max(0.14, config.claw.pivotSpan / 2 + 0.05);
-
   return (
-    <RigidBody
-      ref={ref}
-      type="kinematicPosition"
-      colliders={false}
-      collisionGroups={CRANE_GROUPS}
-      position={[crane.homeX, crane.homeY, crane.homeZ]}
-      ccd={config.physics.ccd}
-    >
-      {/* hub */}
-      <CuboidCollider args={[hubHalfX, 0.05, 0.09]} position={[0, 0, 0]} />
-      {/* shaft */}
-      <CuboidCollider args={[0.03, shaftLen / 2, 0.03]} position={[0, shaftLen / 2, 0]} />
-      {/* carriage */}
-      <CuboidCollider args={[0.26, 0.05, 0.22]} position={[0, carriageY, 0]} />
-
-      <mesh position={[0, 0, 0]} castShadow>
-        <boxGeometry args={[hubHalfX * 2, 0.1, 0.18]} />
-        <meshStandardMaterial color="#9aa1b0" metalness={0.5} roughness={0.4} />
-      </mesh>
-      <mesh position={[0, shaftLen / 2, 0]} castShadow>
-        <boxGeometry args={[0.06, shaftLen, 0.06]} />
-        <meshStandardMaterial color="#7c8290" metalness={0.5} roughness={0.4} />
-      </mesh>
-      <mesh position={[0, carriageY, 0]} castShadow>
-        <boxGeometry args={[0.52, 0.1, 0.44]} />
-        <meshStandardMaterial color="#aab0be" metalness={0.4} roughness={0.45} />
-      </mesh>
-    </RigidBody>
+    <>
+      <Carriage ref={carriageRef} config={config} />
+      <Hub ref={hubRef} config={config} />
+      <Cable carriageRef={carriageRef} hubRef={hubRef} />
+      <ClawAssembly
+        key={clawKey}
+        config={config}
+        hubRef={hubRef}
+        clawOpenRef={clawOpenRef}
+        hubPosition={[crane.homeX, crane.homeY, crane.homeZ]}
+      />
+    </>
   );
-});
+}

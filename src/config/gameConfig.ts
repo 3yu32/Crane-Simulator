@@ -56,16 +56,28 @@ export interface GameConfig {
     homeY: number;
     homeZ: number;
 
-    /** Y of the claw hub when fully raised. */
+    /** Fixed Y of the trolley/carriage that the cable hangs from. */
+    carriageY: number;
+    /** Target Y of the claw hub when fully raised (shortest cable). */
     topY: number;
-    /** Y of the claw hub at the bottom of a descent (hard depth limit). */
+    /** Target Y of the claw hub at the bottom of a descent (longest cable). */
     lowestY: number;
+
     /**
-     * Descent stops early once the claw contact force (N) exceeds this — e.g.
-     * when the prongs press onto the prize or the rods. 0 disables the check,
-     * so descent only stops at `lowestY` (spec §15).
+     * The claw head hangs from the carriage on a simulated cable: a prismatic
+     * (Y-axis) joint whose position motor is the winch. These are the winch
+     * spring constant and damping (force-based, N/m and N·s/m).
      */
-    descentStopForce: number;
+    cableStiffness: number;
+    cableDamping: number;
+    /** Mass of the dynamic claw hub. */
+    hubMass: number;
+    /**
+     * While lowering, the descent stops once the cable tension (N) drops below
+     * this — i.e. the cable has gone slack because the claw is resting on the
+     * prize / rods (spec §15). 0 stops only when the cable would start to push.
+     */
+    descentTensionStop: number;
 
     /** Seconds to hold still after the claws close, before lifting. */
     settleTime: number;
@@ -200,9 +212,14 @@ export const gameConfig: GameConfig = {
     homeY: 3.0,
     homeZ: 1.1,
 
+    carriageY: 3.55,
     topY: 3.0,
     lowestY: 1.66,
-    descentStopForce: 0,
+
+    cableStiffness: 220,
+    cableDamping: 20,
+    hubMass: 0.9,
+    descentTensionStop: 6,
 
     settleTime: 0.8,
     releaseTime: 0.7,
@@ -275,8 +292,9 @@ export const gameConfig: GameConfig = {
   },
 
   camera: {
-    position: [3.3, 3.15, 6.9],
-    target: [-0.15, 1.4, 0.0],
-    fov: 46,
+    // Head-on with the cabinet (X aligned to its centre), looking slightly down.
+    position: [0, 3.5, 8.6],
+    target: [0, 1.55, 0.0],
+    fov: 44,
   },
 };

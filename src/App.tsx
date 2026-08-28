@@ -29,6 +29,11 @@ export default function App() {
       <header className="title">3D CRANE GAME</header>
       <PrizeGetBanner />
       <ArmControls />
+      {/* Frame/label over the side-view inset the WebGL canvas renders here
+          (position must match SIDE_VIEW_RECT in components/SideView.tsx). */}
+      <div className="side-view-frame">
+        <span>SIDE</span>
+      </div>
       <CraneControls />
       <DebugPanel />
     </div>

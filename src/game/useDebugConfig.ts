@@ -116,7 +116,7 @@ export function useDebugConfig(): GameConfig {
       crane: {
         ...gameConfig.crane,
         lowestY: armControls.descentLimitY,
-        descentStopForce: armControls.descentStopForce,
+        descentTensionStop: armControls.descentTensionStop,
       },
     };
 
@@ -155,7 +155,7 @@ export function useDebugConfig(): GameConfig {
     debug,
     armControls.armPower,
     armControls.descentLimitY,
-    armControls.descentStopForce,
+    armControls.descentTensionStop,
     values.prizeMass,
     values.prizeFriction,
     values.prizeWidth,

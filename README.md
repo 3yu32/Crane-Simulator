@@ -71,8 +71,10 @@ npm run lint      # oxlint
 | スライダー | 対応パラメータ | 内容 |
 | --- | --- | --- |
 | **アームパワー** | `claw.motorStiffness` | 爪モーターの強さ（掴む力・閉じる力）。20〜1200 |
-| **下降リミット (Y)** | `crane.lowestY` | アームが下降できる最下点（ハード制限）。1.2〜2.8 |
-| **下降停止力 (0=OFF)** | `crane.descentStopForce` | 下降中に爪へこの N 以上の接触力がかかると下降を停止。0 で無効 |
+| **下降リミット (Y)** | `crane.lowestY` | 爪ハブが下降できる最下点（ハード制限）。1.2〜2.8 |
+| **下降停止 張力 (N)** | `crane.descentTensionStop` | 下降中に糸の張力がこの値を下回ったら停止（爪が景品・棒に乗って糸がたるんだ状態）。0〜30 |
+
+パネル下部に「糸の張力」の実測値をリアルタイム表示します（吊り下げ時 ≈ 15 N、着地で 0 付近へ）。
 
 Debug モード（leva パネル）ではさらに以下を調整できます：
 
@@ -84,7 +86,7 @@ Debug モード（leva パネル）ではさらに以下を調整できます：
 - `Orbit Camera`（固定カメラの代わりに OrbitControls）
 - 現在の State Machine の状態表示
 
-（アームパワー／下降リミット／下降停止力は上記「ARM パネル」で常時調整可能）
+（アームパワー／下降リミット／下降停止 張力は上記「ARM パネル」で常時調整可能）
 
 ## 6. ディレクトリ構成
 
@@ -105,7 +107,10 @@ src/
 ├── components/
 │   ├── GameScene.tsx          カメラ・ライト・物理ワールドの組み立て
 │   ├── Crane/
-│   │   ├── Crane.tsx          キネマティックな本体（carriage/shaft/hub）
+│   │   ├── Crane.tsx          リグの組み立て（Carriage/Hub/Cable/ClawAssembly）
+│   │   ├── Carriage.tsx       キネマティックなトロリー（X/Z のみ移動）
+│   │   ├── Hub.tsx            糸で吊られた dynamic な爪ハブ
+│   │   ├── Cable.tsx          糸の見た目（carriage↔hub 追従）
 │   │   ├── ClawAssembly.tsx   2 本爪 ＋ Revolute Joint ＋ モーター
 │   │   └── Claw.tsx           1 本の爪（アーム＋爪先の複合コライダー）
 │   ├── Prize/Prize.tsx        Dynamic RigidBody ＋ Cuboid Collider
@@ -129,10 +134,18 @@ src/
 | --- | --- | --- | --- |
 | 棒（×2） | fixed | Cylinder | Z 方向に伸ばして平行配置。gap / radius / length / 向き は設定可 |
 | 景品 | **dynamic** | Cuboid | 回転ロックなし。CCD 有効。摩擦・質量・damping すべて設定可 |
-| クレーン本体 | **kinematicPosition** | 複数 Cuboid | 実機モーター相当。毎ステップ `setNextKinematicTranslation` |
+| トロリー（carriage） | **kinematicPosition** | Cuboid | 実機の X/Z モーター相当。Y は固定。毎ステップ `setNextKinematicTranslation` |
+| 爪ハブ（hub） | **dynamic** | Cuboid | 回転ロック。糸（下記）で吊られ、上下は物理で決まる |
 | 爪（×2） | **dynamic** | アーム＋爪先の 2 Cuboid | Hub と Revolute Joint で接続 |
 | 床・壁・キャッチ受け | fixed | Cuboid | 床は前方左に穴（シュート）を持つ |
 
+- **上下動＝糸巻き（winch）** … 爪ハブはトロリーから **Y 軸 Prismatic Joint** で吊られ、
+  その **position motor**（ForceBased）が糸の巻き上げ／繰り出しです。目標長を毎ステップ
+  更新することでハブが上下します。Prismatic の limit で `[lowestY, topY]` の範囲外へは出ません。
+- **下降停止（糸のたるみ検出）** … Rapier の JS 版はジョイント反力を取得できないため、
+  張力はキネマティックに推定します：ハブが巻き出し速度に追従している間は「糸は張っていて
+  吊り荷重（≈ 15 N）を保持」、爪が景品・棒に乗ってハブが追従しなくなると張力は 0 付近へ低下。
+  数フレーム連続で `descentTensionStop` を下回ったら下降を停止します（spec §15）。
 - **爪の開閉** … `Revolute Joint` ＋ `configureMotorPosition`（AccelerationBased）。
   モーターは「無限に強くない」ため、景品が爪の間にあるとモーター力 vs 景品の抵抗で
   完全には閉じきらず、強く掴む／弱く掴む／途中で滑る、が自然に発生します（spec §9）。
@@ -161,8 +174,11 @@ spec のまま変更していません。
 | `crane.xSpeed / zSpeed` | 1.3 / 1.1 | 水平移動速度 (m/s) |
 | `crane.descentSpeed / liftSpeed` | 0.6 / 0.55 | 下降・上昇速度 (m/s) |
 | `crane.returnSpeed` | 0.9 | ホーム復帰速度 (m/s) |
-| `crane.lowestY` | 1.66 | 下降時の Hub 最下点 Y（＝Descent Limit Y） |
-| `crane.descentStopForce` | 0 | 下降を止める爪接触力 (N)。0 で無効（spec §15） |
+| `crane.carriageY` | 3.55 | トロリー（糸の吊り元）の固定 Y |
+| `crane.lowestY / topY` | 1.66 / 3.0 | 爪ハブの Y 可動域（＝Descent Limit Y） |
+| `crane.cableStiffness / cableDamping` | 220 / 20 | 糸巻きモーター（ForceBased）の剛性・減衰 |
+| `crane.hubMass` | 0.9 | 爪ハブの質量 |
+| `crane.descentTensionStop` | 6 | 糸の張力 (N) がこれを下回ると下降停止（spec §15） |
 | `claw.openAngle / closedAngle` | 0.30 / 0.66 rad | 爪モーターの目標角（開／閉） |
 | `claw.motorStiffness / motorDamping` | 420 / 42 | 爪モーターの剛性・減衰（＝Arm Power／掴む強さ） |
 | `claw.friction` | 3.0 | 爪の摩擦係数 |
@@ -190,9 +206,9 @@ spec のまま変更していません。
 - 爪モーターの「max impulse」は Rapier JS バインディングに直接 API が無いため、
   現状は stiffness で近似。将来的に `setMotorMaxForce` 相当が入れば置き換え可能。
 - GLTF モデルへの差し替え（現状は primitive geometry のみ）。
-- 下降停止は接触力しきい値（`Descent Stop Force`）で対応済み。デフォルトは 0（無効）で、
-  最下点 Y に到達して停止する。景品を綺麗にまたいで下降する配置だと接触が起きないため、
-  用途によってはしきい値運用より最下点運用が向く。
+- 下降停止は糸の張力しきい値（`descentTensionStop`）で対応済み。ただし張力は Rapier の
+  制約反力ではなくキネマティック推定（ハブの追従速度ベース）。Rapier に反力取得 API が
+  入れば実測へ置換したい。景品を綺麗にまたいで下降する配置では接触が起きず最下点まで下降する。
 - サウンド、コイン、演出など。
 
 ## 11. テスト

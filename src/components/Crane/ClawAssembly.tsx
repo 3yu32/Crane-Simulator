@@ -22,20 +22,18 @@ import { Claw } from "./Claw";
 
 interface ClawAssemblyProps {
   config: GameConfig;
-  craneRef: RefObject<RapierRigidBody | null>;
+  /** The dynamic claw hub the prongs are jointed to. */
+  hubRef: RefObject<RapierRigidBody | null>;
   /** Open (true) / closed (false) command from the crane controller. */
   clawOpenRef: RefObject<boolean>;
-  /** Prongs report their peak contact-force magnitude here each step. */
-  contactForceRef: RefObject<number>;
   /** Hub position at mount time, for placing the prong bodies. */
   hubPosition: [number, number, number];
 }
 
 export function ClawAssembly({
   config,
-  craneRef,
+  hubRef,
   clawOpenRef,
-  contactForceRef,
   hubPosition,
 }: ClawAssemblyProps) {
   const { claw } = config;
@@ -49,7 +47,7 @@ export function ClawAssembly({
 
   // The joint hooks are typed against non-null refs; `.current` is null until
   // the bodies mount, which the hook already guards for internally.
-  const body1 = craneRef as RefObject<RapierRigidBody>;
+  const body1 = hubRef as RefObject<RapierRigidBody>;
   const leftBody = leftRef as RefObject<RapierRigidBody>;
   const rightBody = rightRef as RefObject<RapierRigidBody>;
 
@@ -100,10 +98,6 @@ export function ClawAssembly({
     );
   });
 
-  const reportForce = (magnitude: number) => {
-    if (magnitude > contactForceRef.current) contactForceRef.current = magnitude;
-  };
-
   return (
     <>
       <Claw
@@ -111,14 +105,12 @@ export function ClawAssembly({
         config={config}
         side="left"
         pivotPosition={[hx - halfSpan, hy, hz]}
-        onContactForce={reportForce}
       />
       <Claw
         ref={rightRef}
         config={config}
         side="right"
         pivotPosition={[hx + halfSpan, hy, hz]}
-        onContactForce={reportForce}
       />
     </>
   );

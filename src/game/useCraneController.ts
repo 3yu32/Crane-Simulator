@@ -1,17 +1,22 @@
 /**
  * Drives the crane through its state machine on a fixed physics timestep
  * (spec §14, §18, §29). This hook owns:
- *   - the authoritative crane target position (kinematic body)
+ *   - the carriage X/Z target (kinematic body — the cabinet's motors, spec §3)
+ *   - the winch: a prismatic-joint position motor that raises/lowers the claw
+ *     hub on a simulated cable
  *   - the open/closed command for the claw motors (via a shared ref)
  *   - prize-acquisition polling
  *
- * It never teleports the prize or parents it to the claws (spec §31): the prize
- * is only ever moved by Rapier.
+ * The hub is a *dynamic* body: it is only ever moved by the cable, gravity and
+ * contacts — never teleported. The descent halts when the computed cable
+ * tension drops below `crane.descentTensionStop` (the cable going slack because
+ * the claw is resting on the prize / rods, spec §15).
  */
 
 import { useEffect, useRef, type RefObject } from "react";
-import { useBeforePhysicsStep } from "@react-three/rapier";
+import { useBeforePhysicsStep, useRapier } from "@react-three/rapier";
 import type { RapierRigidBody } from "@react-three/rapier";
+import type { PrismaticImpulseJoint } from "@dimforge/rapier3d-compat";
 import type { GameConfig } from "../config/gameConfig";
 import {
   clawShouldBeOpen,
@@ -20,36 +25,40 @@ import {
   type CraneState,
 } from "./craneStateMachine";
 import { isPrizeCollected } from "./prizeDetection";
-import {
-  getState,
-  setCraneState,
-  setPrizeGet,
-} from "./gameStore";
+import { getState, setCableTension, setCraneState, setPrizeGet } from "./gameStore";
 
 export interface CraneControllerRefs {
-  craneRef: RefObject<RapierRigidBody | null>;
+  /** Kinematic trolley at the top. */
+  carriageRef: RefObject<RapierRigidBody | null>;
+  /** Dynamic claw hub, hanging on the cable. */
+  hubRef: RefObject<RapierRigidBody | null>;
+  /** Prismatic (Y) joint carriage→hub — its position motor is the winch. */
+  winchJointRef: RefObject<PrismaticImpulseJoint | undefined>;
   prizeRef: RefObject<RapierRigidBody | null>;
   /** Shared command consumed by the claw assembly's motor loop. */
   clawOpenRef: RefObject<boolean>;
   /** Imperative prize reset, registered by the Prize component. */
   resetPrizeRef: RefObject<(() => void) | null>;
-  /**
-   * Largest claw contact-force magnitude (N) seen since the last physics step,
-   * written by the claw bodies. Used to halt the descent on resistance.
-   */
-  contactForceRef: RefObject<number>;
 }
 
 interface ControllerRuntime {
   state: CraneState;
   x: number;
-  y: number;
   z: number;
+  /** Commanded hub target Y (cable length = carriageY - hubTargetY). */
+  hubTargetY: number;
   timer: number;
   lastResetNonce: number;
+  motorModelSet: boolean;
+  /** Consecutive DESCENDING steps with the cable reading slack. */
+  slackStreak: number;
 }
 
 const EPS = 1e-3;
+/** Ignore the slack check until the hub has descended at least this far. */
+const TENSION_CHECK_MARGIN = 0.14;
+/** Consecutive slack steps required before halting the descent (debounce). */
+const SLACK_STREAK_TO_STOP = 4;
 
 function approach(current: number, target: number, maxDelta: number): number {
   const d = target - current;
@@ -61,49 +70,71 @@ export function useCraneController(
   refs: CraneControllerRefs,
   config: GameConfig,
 ): void {
-  const { craneRef, prizeRef, clawOpenRef, resetPrizeRef, contactForceRef } =
-    refs;
+  const {
+    carriageRef,
+    hubRef,
+    winchJointRef,
+    prizeRef,
+    clawOpenRef,
+    resetPrizeRef,
+  } = refs;
   const { crane, goal, physics } = config;
+  const { rapier } = useRapier();
 
   const rt = useRef<ControllerRuntime>({
     state: "IDLE",
     x: crane.homeX,
-    y: crane.homeY,
     z: crane.homeZ,
+    hubTargetY: crane.homeY,
     timer: 0,
     lastResetNonce: 0,
+    motorModelSet: false,
+    slackStreak: 0,
   });
 
-  // Re-home the runtime whenever the config's home changes (e.g. first mount).
   useEffect(() => {
     const r = rt.current;
     r.x = crane.homeX;
-    r.y = crane.homeY;
     r.z = crane.homeZ;
+    r.hubTargetY = crane.homeY;
   }, [crane.homeX, crane.homeY, crane.homeZ]);
 
   useBeforePhysicsStep(() => {
     const r = rt.current;
     const cfg = config;
+    const c = cfg.crane;
     const dt = physics.timeStep;
     const store = getState();
+    const carriage = carriageRef.current;
+    const hub = hubRef.current;
+    const joint = winchJointRef.current;
 
     const dispatch = (event: CraneEvent) => {
       r.state = craneReducer(r.state, event);
       r.timer = 0;
+      r.slackStreak = 0;
     };
 
-    // Consume the contact force accumulated during the previous step.
-    const contactForce = contactForceRef.current;
-    contactForceRef.current = 0;
+    /* ---- cable tension estimate ----------------------------------------------
+     * Rapier's JS build doesn't expose joint reaction forces, so tension is
+     * derived kinematically: the cable is taut (holding the full hung weight)
+     * while the hub keeps pace with the winch, and goes slack as the hub falls
+     * behind — i.e. when the claw is resting on the prize / rods.
+     */
+    const hangWeight = (c.hubMass + 2 * cfg.claw.mass) * -cfg.gravity;
+    let tension = hangWeight;
+    if (hub && r.state === "DESCENDING") {
+      const followRate = Math.max(0, -hub.linvel().y) / c.descentSpeed;
+      tension = hangWeight * Math.min(1, followRate);
+    }
 
-    /* ---- RESET handling: observe the nonce, restore everything ---- */
+    /* ---- RESET ---- */
     if (store.resetNonce !== r.lastResetNonce) {
       r.lastResetNonce = store.resetNonce;
       dispatch("RESET");
-      r.x = cfg.crane.homeX;
-      r.y = cfg.crane.homeY;
-      r.z = cfg.crane.homeZ;
+      r.x = c.homeX;
+      r.z = c.homeZ;
+      r.hubTargetY = c.homeY;
       resetPrizeRef.current?.();
       setPrizeGet(false);
       dispatch("RESET_DONE");
@@ -116,10 +147,10 @@ export function useCraneController(
         break;
 
       case "MOVING_X":
-        if (store.input.right && r.x < cfg.crane.maxX - EPS) {
-          r.x = Math.min(cfg.crane.maxX, r.x + cfg.crane.xSpeed * dt);
+        if (store.input.right && r.x < c.maxX - EPS) {
+          r.x = Math.min(c.maxX, r.x + c.xSpeed * dt);
         } else {
-          r.x = Math.min(cfg.crane.maxX, r.x);
+          r.x = Math.min(c.maxX, r.x);
           dispatch("RELEASE_RIGHT");
         }
         break;
@@ -129,25 +160,29 @@ export function useCraneController(
         break;
 
       case "MOVING_Z":
-        // "Deeper into the cabinet" is toward smaller Z (see gameConfig header).
-        if (store.input.back && r.z > cfg.crane.minZ + EPS) {
-          r.z = Math.max(cfg.crane.minZ, r.z - cfg.crane.zSpeed * dt);
+        if (store.input.back && r.z > c.minZ + EPS) {
+          r.z = Math.max(c.minZ, r.z - c.zSpeed * dt);
         } else {
-          r.z = Math.max(cfg.crane.minZ, r.z);
+          r.z = Math.max(c.minZ, r.z);
           dispatch("RELEASE_BACK");
         }
         break;
 
       case "OPENING":
         r.timer += dt;
-        if (r.timer >= cfg.crane.openTime) dispatch("OPEN_DONE");
+        if (r.timer >= c.openTime) dispatch("OPEN_DONE");
         break;
 
       case "DESCENDING": {
-        const stopForce = cfg.crane.descentStopForce;
-        const blocked = stopForce > 0 && contactForce >= stopForce;
-        r.y = approach(r.y, cfg.crane.lowestY, cfg.crane.descentSpeed * dt);
-        if (blocked || Math.abs(r.y - cfg.crane.lowestY) < EPS) {
+        r.hubTargetY = approach(r.hubTargetY, c.lowestY, c.descentSpeed * dt);
+        const descended = c.topY - r.hubTargetY;
+        const slackNow =
+          descended > TENSION_CHECK_MARGIN && tension < c.descentTensionStop;
+        r.slackStreak = slackNow ? r.slackStreak + 1 : 0;
+        if (
+          r.slackStreak >= SLACK_STREAK_TO_STOP ||
+          Math.abs(r.hubTargetY - c.lowestY) < EPS
+        ) {
           dispatch("DESCEND_DONE");
         }
         break;
@@ -155,21 +190,21 @@ export function useCraneController(
 
       case "CLOSING":
         r.timer += dt;
-        if (r.timer >= cfg.crane.settleTime) dispatch("CLOSE_DONE");
+        if (r.timer >= c.settleTime) dispatch("CLOSE_DONE");
         break;
 
       case "LIFTING":
-        r.y = approach(r.y, cfg.crane.topY, cfg.crane.liftSpeed * dt);
-        if (Math.abs(r.y - cfg.crane.topY) < EPS) dispatch("LIFT_DONE");
+        r.hubTargetY = approach(r.hubTargetY, c.topY, c.liftSpeed * dt);
+        if (Math.abs(r.hubTargetY - c.topY) < EPS) dispatch("LIFT_DONE");
         break;
 
       case "RETURNING": {
-        const step = cfg.crane.returnSpeed * dt;
-        r.x = approach(r.x, cfg.crane.homeX, step);
-        r.z = approach(r.z, cfg.crane.homeZ, step);
+        const step = c.returnSpeed * dt;
+        r.x = approach(r.x, c.homeX, step);
+        r.z = approach(r.z, c.homeZ, step);
         if (
-          Math.abs(r.x - cfg.crane.homeX) < EPS &&
-          Math.abs(r.z - cfg.crane.homeZ) < EPS
+          Math.abs(r.x - c.homeX) < EPS &&
+          Math.abs(r.z - c.homeZ) < EPS
         ) {
           dispatch("RETURN_DONE");
         }
@@ -178,7 +213,7 @@ export function useCraneController(
 
       case "RELEASING":
         r.timer += dt;
-        if (r.timer >= cfg.crane.releaseTime) dispatch("RELEASE_DONE");
+        if (r.timer >= c.releaseTime) dispatch("RELEASE_DONE");
         break;
 
       case "RESETTING":
@@ -189,10 +224,28 @@ export function useCraneController(
     /* ---- publish outputs ---- */
     clawOpenRef.current = clawShouldBeOpen(r.state);
     setCraneState(r.state);
+    setCableTension(tension);
 
-    const craneBody = craneRef.current;
-    if (craneBody) {
-      craneBody.setNextKinematicTranslation({ x: r.x, y: r.y, z: r.z });
+    if (carriage) {
+      carriage.setNextKinematicTranslation({
+        x: r.x,
+        y: c.carriageY,
+        z: r.z,
+      });
+    }
+
+    if (joint) {
+      if (!r.motorModelSet) {
+        // Force-based: stiffness / damping are real N/m and N·s/m, so the
+        // tension estimate above matches the force Rapier actually applies.
+        joint.configureMotorModel(rapier.MotorModel.ForceBased);
+        r.motorModelSet = true;
+      }
+      joint.configureMotorPosition(
+        r.hubTargetY - c.carriageY,
+        c.cableStiffness,
+        c.cableDamping,
+      );
     }
 
     const prizeBody = prizeRef.current;

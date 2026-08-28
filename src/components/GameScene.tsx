@@ -7,7 +7,12 @@
 import { useEffect, useRef, useMemo, type RefObject } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Physics, useRapier, type RapierRigidBody } from "@react-three/rapier";
+import {
+  Physics,
+  usePrismaticJoint,
+  useRapier,
+  type RapierRigidBody,
+} from "@react-three/rapier";
 import { Vector3 } from "three";
 import type { GameConfig } from "../config/gameConfig";
 import { useDebugConfig } from "../game/useDebugConfig";
@@ -16,9 +21,9 @@ import { useCraneController } from "../game/useCraneController";
 import { Bridge } from "./Bridge/Bridge";
 import { Prize } from "./Prize/Prize";
 import { Crane } from "./Crane/Crane";
-import { ClawAssembly } from "./Crane/ClawAssembly";
 import { Cabinet } from "./Environment/Cabinet";
 import { GoalMarker } from "./Environment/GoalMarker";
+import { SideView } from "./SideView";
 
 function PlayCamera({ config }: { config: GameConfig }) {
   const orbit = useGameState((s) => s.orbit);
@@ -113,28 +118,42 @@ function SimTestHarness() {
 
 /** Everything that lives inside the physics world. */
 function World({ config }: { config: GameConfig }) {
-  const craneRef = useRef<RapierRigidBody>(null);
+  const carriageRef = useRef<RapierRigidBody>(null);
+  const hubRef = useRef<RapierRigidBody>(null);
   const prizeRef = useRef<RapierRigidBody>(null);
   const clawOpenRef = useRef<boolean>(true);
-  const contactForceRef = useRef<number>(0);
   const resetPrizeRef: RefObject<(() => void) | null> = useRef(null);
 
-  useCraneController(
-    { craneRef, prizeRef, clawOpenRef, resetPrizeRef, contactForceRef },
-    config,
+  const { crane } = config;
+
+  // The cable: a Y-axis prismatic joint carriage→hub whose position motor is
+  // the winch. Limits keep the hub within [lowestY, topY] whatever the motor does.
+  const winchJoint = usePrismaticJoint(
+    carriageRef as RefObject<RapierRigidBody>,
+    hubRef as RefObject<RapierRigidBody>,
+    [
+      new Vector3(0, 0, 0),
+      new Vector3(0, 0, 0),
+      new Vector3(0, 1, 0),
+      [crane.lowestY - crane.carriageY, crane.topY - crane.carriageY],
+    ],
   );
 
-  const { crane } = config;
-  const hubPosition: [number, number, number] = [
-    crane.homeX,
-    crane.homeY,
-    crane.homeZ,
-  ];
+  useCraneController(
+    {
+      carriageRef,
+      hubRef,
+      winchJointRef: winchJoint,
+      prizeRef,
+      clawOpenRef,
+      resetPrizeRef,
+    },
+    config,
+  );
 
   // Re-mount bodies whose collider shape / mass properties changed in the GUI.
   const prizeKey = `${config.prize.width}|${config.prize.height}|${config.prize.depth}|${config.prize.mass}|${config.prize.friction}`;
   const bridgeKey = `${config.bridge.rodGap}|${config.bridge.friction}`;
-  const clawKey = `${config.claw.friction}|${config.claw.armLength}|${config.claw.armThickness}|${config.claw.tipLength}`;
 
   return (
     <>
@@ -147,14 +166,12 @@ function World({ config }: { config: GameConfig }) {
         prizeRef={prizeRef}
         resetPrizeRef={resetPrizeRef}
       />
-      <Crane ref={craneRef} config={config} />
-      <ClawAssembly
-        key={clawKey}
+      <Crane
         config={config}
-        craneRef={craneRef}
+        carriageRef={carriageRef}
+        hubRef={hubRef}
         clawOpenRef={clawOpenRef}
-        contactForceRef={contactForceRef}
-        hubPosition={hubPosition}
+        clawKey={`${config.claw.friction}`}
       />
       <GoalMarker config={config} />
     </>
@@ -196,6 +213,7 @@ export function GameScene() {
       >
         <World config={config} />
       </Physics>
+      <SideView config={config} />
     </Canvas>
   );
 }
