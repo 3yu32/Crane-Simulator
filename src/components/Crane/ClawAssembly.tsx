@@ -56,15 +56,19 @@ export function ClawAssembly({
 
   // body1 (hub) anchor is offset to each prong's pivot; body2 anchor is the
   // prong's own origin. Rotation axis is world +Z so the prongs swing in X-Y.
+  // Limits are created wide and tightened live below. Left angle: open is −,
+  // close is +; the right prong is mirrored.
   const leftJoint = useRevoluteJoint(body1, leftBody, [
     new Vector3(-halfSpan, 0, 0),
     new Vector3(0, 0, 0),
     new Vector3(0, 0, 1),
+    [-Math.PI, Math.PI],
   ]);
   const rightJoint = useRevoluteJoint(body1, rightBody, [
     new Vector3(halfSpan, 0, 0),
     new Vector3(0, 0, 0),
     new Vector3(0, 0, 1),
+    [-Math.PI, Math.PI],
   ]);
 
   useBeforePhysicsStep(() => {
@@ -78,6 +82,11 @@ export function ClawAssembly({
     // HMR / re-mounts).
     lj.configureMotorModel(rapier.MotorModel.ForceBased);
     rj.configureMotorModel(rapier.MotorModel.ForceBased);
+
+    // Hard swing limits (magnitudes → signed per side). Keeps an object
+    // sliding along a prong from forcing it wider than `limitOpen`.
+    lj.setLimits(-claw.limitOpen, claw.limitClose);
+    rj.setLimits(-claw.limitClose, claw.limitOpen);
 
     // Left prong: open swings the tip outward (−angle), close swings it in (+).
     // Right prong is mirrored.

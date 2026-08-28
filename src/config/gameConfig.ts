@@ -91,6 +91,14 @@ export interface GameConfig {
     openAngle: number;
     /** Rest (spring) target angle (rad), magnitude — the closed / squeeze pose. */
     closedAngle: number;
+    /**
+     * Hard limits on how far a prong can swing, as magnitudes (rad). The
+     * revolute joint physically cannot open past `limitOpen` or close past
+     * `limitClose`, so an object sliding along the prong can't force it wider
+     * than intended.
+     */
+    limitOpen: number;
+    limitClose: number;
 
     /**
      * Spring that holds each prong closed. `motorStiffness` is the elastic
@@ -242,6 +250,8 @@ export const gameConfig: GameConfig = {
     count: 2,
     openAngle: 0.36,
     closedAngle: 0.02,
+    limitOpen: 0.44,
+    limitClose: 0.55,
 
     motorStiffness: 32,
     motorDamping: 4,
