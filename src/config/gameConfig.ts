@@ -147,14 +147,15 @@ export interface GameConfig {
 
   bridge: {
     rodRadius: number;
+    /** Number of parallel rods. */
+    rodCount: number;
+    /** Rod length along X (wall to wall). */
     rodLength: number;
-    /** Center-to-center distance between the two rods, along X. */
-    rodGap: number;
+    /** Center-to-center spacing between adjacent rods, along Z. */
+    rodSpacing: number;
     /** Center Y of the rods. */
     rodHeight: number;
-    /** Center X of the rod pair. */
-    rodCenterX: number;
-    /** Center Z of the rod pair. */
+    /** Center Z of the rod array. */
     rodCenterZ: number;
     friction: number;
     restitution: number;
@@ -164,13 +165,15 @@ export interface GameConfig {
     y: number;
     friction: number;
     restitution: number;
-    /** AABB of the open chute in the floor: [minX, maxX, minZ, maxZ]. */
-    chute: readonly [number, number, number, number];
     /** World extents of the floor: [minX, maxX, minZ, maxZ]. */
     bounds: readonly [number, number, number, number];
   };
 
-  /** Goal volume the prize must enter to count as collected (spec section 27). */
+  /**
+   * Goal volume the prize must enter to count as collected (spec §27). Here it
+   * is a thin slab covering the whole cabinet floor: any prize that ends up on
+   * the floor (knocked off the bridge or dropped) counts.
+   */
   goal: {
     center: Vec3;
     /** Half-extents of the goal box. */
@@ -267,11 +270,12 @@ export const gameConfig: GameConfig = {
   },
 
   bridge: {
-    rodRadius: 0.05,
-    rodLength: 2.2,
-    rodGap: 0.3,
+    rodRadius: 0.045,
+    rodCount: 4,
+    // Wall-to-wall: floor.bounds X span (4.0) minus the wall thickness.
+    rodLength: 3.9,
+    rodSpacing: 0.24,
     rodHeight: 1.05,
-    rodCenterX: 0.15,
     rodCenterZ: -0.1,
     friction: 0.5,
     restitution: 0.0,
@@ -281,14 +285,14 @@ export const gameConfig: GameConfig = {
     y: 0,
     friction: 0.7,
     restitution: 0.0,
-    // Chute occupies the front-left corner (large Z, small X).
-    chute: [-2.0, -0.9, 0.5, 2.0],
     bounds: [-2.0, 2.0, -2.0, 2.0],
   },
 
+  // Thin slab just above the whole floor: collected once the prize is low
+  // enough to be resting on the floor (well below the bridge at y≈1.38).
   goal: {
-    center: [-1.35, 0.35, 1.1],
-    halfExtents: [0.5, 0.8, 0.65],
+    center: [0, 0.2, 0],
+    halfExtents: [1.95, 0.42, 1.95],
   },
 
   camera: {

@@ -53,10 +53,10 @@ export function useDebugConfig(): GameConfig {
         },
       }),
       Bridge: folder({
-        rodGap: {
-          value: gameConfig.bridge.rodGap,
+        rodSpacing: {
+          value: gameConfig.bridge.rodSpacing,
           min: 0.1,
-          max: 0.6,
+          max: 0.5,
           step: 0.005,
         },
         rodFriction: {
@@ -135,7 +135,7 @@ export function useDebugConfig(): GameConfig {
       },
       bridge: {
         ...withArm.bridge,
-        rodGap: values.rodGap,
+        rodSpacing: values.rodSpacing,
         friction: values.rodFriction,
       },
       claw: {
@@ -161,7 +161,7 @@ export function useDebugConfig(): GameConfig {
     values.prizeWidth,
     values.prizeHeight,
     values.prizeDepth,
-    values.rodGap,
+    values.rodSpacing,
     values.rodFriction,
     values.openAngle,
     values.closedAngle,

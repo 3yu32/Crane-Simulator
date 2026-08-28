@@ -1,7 +1,7 @@
 /**
- * The "bridge" pair of parallel rods the prize rests on (spec §6). Direction,
- * gap, radius and length are all configurable; here the rods run along +Z and
- * are separated along X, centred on the configured point.
+ * The "bridge": `rodCount` parallel rods (spec §6). Here the rods run along X
+ * (wall to wall) and are spaced along Z, centred on the configured point. The
+ * prize rests across the middle pair and can fall through the gap between them.
  */
 
 import type { GameConfig } from "../../config/gameConfig";
@@ -13,32 +13,24 @@ interface BridgeProps {
 
 export function Bridge({ config }: BridgeProps) {
   const { bridge } = config;
-  const halfGap = bridge.rodGap / 2;
+  const first = -((bridge.rodCount - 1) / 2) * bridge.rodSpacing;
 
   return (
     <group>
-      <Rod
-        position={[
-          bridge.rodCenterX - halfGap,
-          bridge.rodHeight,
-          bridge.rodCenterZ,
-        ]}
-        radius={bridge.rodRadius}
-        length={bridge.rodLength}
-        friction={bridge.friction}
-        restitution={bridge.restitution}
-      />
-      <Rod
-        position={[
-          bridge.rodCenterX + halfGap,
-          bridge.rodHeight,
-          bridge.rodCenterZ,
-        ]}
-        radius={bridge.rodRadius}
-        length={bridge.rodLength}
-        friction={bridge.friction}
-        restitution={bridge.restitution}
-      />
+      {Array.from({ length: bridge.rodCount }, (_, i) => (
+        <Rod
+          key={i}
+          position={[
+            0,
+            bridge.rodHeight,
+            bridge.rodCenterZ + first + i * bridge.rodSpacing,
+          ]}
+          radius={bridge.rodRadius}
+          length={bridge.rodLength}
+          friction={bridge.friction}
+          restitution={bridge.restitution}
+        />
+      ))}
     </group>
   );
 }

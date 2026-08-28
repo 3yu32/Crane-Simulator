@@ -12,12 +12,12 @@
 
 ## 1. プロジェクト概要
 
-- 橋渡し（2 本の平行な棒）の上に縦長の箱型景品が乗っている
+- 橋渡し（4 本の平行な棒、左右の壁いっぱいまで横向きに延びる）の上に縦長の箱型景品が乗っている
 - プレイヤーは「右」「奥」の 2 ボタンでクレーンの X / Z 位置を決める
 - 位置確定後、クレーンが自動で下降 → 爪を閉じる → 上昇 → ホームへ戻る → 爪を開く
 - 景品は爪へ強制追従させず、**爪との接触・摩擦だけ**で持ち上がる
   （掴みが甘ければ途中で滑り落ちる ＝ 正常な挙動）
-- ホーム位置の下にシュート（穴＋キャッチ受け）があり、景品が入ると `PRIZE GET!`
+- 景品が棒から落ちて機体内の床に乗れば（床全体が獲得口）`PRIZE GET!`
 
 ## 2. 使用技術
 
@@ -79,7 +79,7 @@ npm run lint      # oxlint
 Debug モード（leva パネル）ではさらに以下を調整できます：
 
 - Prize: mass / friction / width / height / depth
-- Bridge: rod gap / rod friction
+- Bridge: rod spacing / rod friction
 - Claw: open angle / closed angle / friction
 - Crane: X speed / Z speed / descent speed
 - `Show Physics Colliders`（コライダーのワイヤーフレーム表示）
@@ -115,11 +115,12 @@ src/
 │   │   └── Claw.tsx           1 本の爪（アーム＋爪先の複合コライダー）
 │   ├── Prize/Prize.tsx        Dynamic RigidBody ＋ Cuboid Collider
 │   ├── Bridge/
-│   │   ├── Bridge.tsx
+│   │   ├── Bridge.tsx         横向き 4 本の棒
 │   │   └── Rod.tsx            Fixed RigidBody ＋ Cylinder Collider
 │   ├── Environment/
-│   │   ├── Cabinet.tsx        床（シュート穴あり）・壁・キャッチ受け
-│   │   └── GoalMarker.tsx
+│   │   ├── Cabinet.tsx        床（一枚板）・壁・枠
+│   │   └── GoalMarker.tsx     獲得領域の可視化（Debug 時のみ）
+│   ├── SideView.tsx           左パネル下の横アングル インセット表示
 │   ├── Controls/
 │   │   ├── CraneControls.tsx  右／奥／RESET ボタン
 │   │   └── ArmControls.tsx    画面左上の ARM スライダー（常時表示）
@@ -132,12 +133,12 @@ src/
 
 | 要素 | 剛体タイプ | コライダー | 補足 |
 | --- | --- | --- | --- |
-| 棒（×2） | fixed | Cylinder | Z 方向に伸ばして平行配置。gap / radius / length / 向き は設定可 |
+| 棒（×4） | fixed | Cylinder | X 方向（横向き）に壁から壁まで。Z 方向に等間隔配置。本数 / 間隔 / 半径 / 長さ を設定可 |
 | 景品 | **dynamic** | Cuboid | 回転ロックなし。CCD 有効。摩擦・質量・damping すべて設定可 |
 | トロリー（carriage） | **kinematicPosition** | Cuboid | 実機の X/Z モーター相当。Y は固定。毎ステップ `setNextKinematicTranslation` |
 | 爪ハブ（hub） | **dynamic** | Cuboid | 回転ロック。糸（下記）で吊られ、上下は物理で決まる |
 | 爪（×2） | **dynamic** | アーム＋爪先の 2 Cuboid | Hub と Revolute Joint で接続 |
-| 床・壁・キャッチ受け | fixed | Cuboid | 床は前方左に穴（シュート）を持つ |
+| 床・壁・枠 | fixed | Cuboid | 床は穴なしの一枚板。床全体が獲得判定領域 |
 
 - **上下動＝糸巻き（winch）** … 爪ハブはトロリーから **Y 軸 Prismatic Joint** で吊られ、
   その **position motor**（ForceBased）が糸の巻き上げ／繰り出しです。目標長を毎ステップ
@@ -179,6 +180,7 @@ spec のまま変更していません。
 | `crane.cableStiffness / cableDamping` | 220 / 20 | 糸巻きモーター（ForceBased）の剛性・減衰 |
 | `crane.hubMass` | 0.9 | 爪ハブの質量 |
 | `crane.descentTensionStop` | 6 | 糸の張力 (N) がこれを下回ると下降停止（spec §15） |
+| `goal.center / halfExtents` | 床全体 | 景品がこの薄いスラブ（床直上）に入れば獲得 |
 | `claw.openAngle / closedAngle` | 0.30 / 0.66 rad | 爪モーターの目標角（開／閉） |
 | `claw.motorStiffness / motorDamping` | 420 / 42 | 爪モーターの剛性・減衰（＝Arm Power／掴む強さ） |
 | `claw.friction` | 3.0 | 爪の摩擦係数 |
@@ -186,7 +188,8 @@ spec のまま変更していません。
 | `prize.width / height / depth` | 0.30 / 0.58 / 0.30 | 景品サイズ |
 | `prize.mass` | 0.34 | 景品の質量 |
 | `prize.friction` | 1.3 | 景品の摩擦係数 |
-| `bridge.rodGap` | 0.30 | 棒の中心間距離（広げると景品が間に落ちる） |
+| `bridge.rodCount / rodSpacing` | 4 / 0.24 | 棒の本数と Z 方向の間隔（広げると景品が間に落ちる） |
+| `bridge.rodLength` | 3.9 | 棒の長さ（左壁〜右壁） |
 | `bridge.friction` | 0.5 | 棒の摩擦係数 |
 
 ## 9. パラメータ調整方法
@@ -198,7 +201,7 @@ spec のまま変更していません。
 
 ## 10. 今後改善できる箇所
 
-- **把持の安定性** … 現状、爪が景品を掴んで持ち上げシュートへ届くことはあるが、
+- **把持の安定性** … 現状、爪が景品を掴んで持ち上げ床へ落とせることはあるが、
   下降・閉爪時に景品を弾いてしまう場合や、上昇・復帰中に滑り落ちる場合がある。
   `claw.motorStiffness` / `claw.friction` / `prize.friction` / `closedAngle` /
   閉爪速度のさらなるチューニングで成功率を上げられる。

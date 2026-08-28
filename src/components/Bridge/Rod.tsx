@@ -1,7 +1,7 @@
 /**
  * A single bridge rod: a fixed cylinder rigid body with an explicit cylinder
- * collider (spec §6). The rigid body is rotated 90° about X so the local +Y
- * cylinder axis points along world +Z.
+ * collider (spec §6). The rigid body is rotated 90° about Z so the local +Y
+ * cylinder axis points along world +X (the rods run left-to-right).
  */
 
 import { CylinderCollider, RigidBody } from "@react-three/rapier";
@@ -26,7 +26,7 @@ export function Rod({
       type="fixed"
       colliders={false}
       position={position}
-      rotation={[Math.PI / 2, 0, 0]}
+      rotation={[0, 0, Math.PI / 2]}
     >
       <CylinderCollider
         args={[length / 2, radius]}
