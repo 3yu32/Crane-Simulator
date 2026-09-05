@@ -3,16 +3,20 @@
  * WebGLRenderer for capturing the two views; everything else routes through
  * the store, same as the rest of the app.
  *
- * Watches `aiPlayNonce` (bumped by the プレイ button, see AIControls.tsx):
- * capture front/side views → ask Qwen2.5-VL (via the local backend) for an
+ * Watches `aiPlayNonce` (bumped by the プレイ button, see CraneControls.tsx):
+ * capture front/side views → ask Gemini (via the local backend) for an
  * (X, Z) move → feed it into the exact same pipeline style 2 uses
  * (setDirectTarget + goDirect).
+ *
+ * When `aiLogging` is on, it then waits for the crane sequence to finish,
+ * captures the after-move views, reads whether the prize was got (0/1), and
+ * POSTs the whole run to the backend's local log folder.
  */
 
 import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import type { GameConfig } from "../config/gameConfig";
-import { requestAiMove } from "../game/aiPlayer";
+import { captureViews, postAiLog, requestAiMove } from "../game/aiPlayer";
 import {
   getState,
   goDirect,
@@ -22,6 +26,26 @@ import {
   setDirectTarget,
   subscribe,
 } from "../game/gameStore";
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Resolve once the crane has left IDLE and returned to it (or a timeout). */
+function waitForCraneReturn(timeoutMs = 45000): Promise<void> {
+  return new Promise((resolve) => {
+    let leftIdle = getState().craneState !== "IDLE";
+    const finish = () => {
+      unsub();
+      clearTimeout(timer);
+      resolve();
+    };
+    const unsub = subscribe(() => {
+      const s = getState().craneState;
+      if (s !== "IDLE") leftIdle = true;
+      else if (leftIdle) finish();
+    });
+    const timer = setTimeout(finish, timeoutMs);
+  });
+}
 
 export function AIPlayer({ config }: { config: GameConfig }) {
   const gl = useThree((s) => s.gl);
@@ -41,10 +65,34 @@ export function AIPlayer({ config }: { config: GameConfig }) {
       }
       try {
         setAiStatus("thinking");
-        const move = await requestAiMove(configRef.current, gl);
-        setAiLastMove(move);
-        setDirectTarget(move);
+        const result = await requestAiMove(configRef.current, gl);
+        setAiLastMove(result.move);
+
+        const gotBefore = getState().prizeGet ? 1 : 0;
+        setDirectTarget(result.move);
         goDirect();
+
+        if (!getState().aiLogging) {
+          setAiStatus("idle");
+          return;
+        }
+
+        setAiStatus("recording");
+        await waitForCraneReturn();
+        await delay(1800); // let a dropped prize land before the after-shot
+        const after = captureViews(gl);
+        const got = getState().prizeGet ? 1 : 0;
+        await postAiLog({
+          prompt: result.prompt,
+          response: result.response,
+          move: result.move,
+          inputFront: result.inputFront,
+          inputSide: result.inputSide,
+          resultFront: after.front,
+          resultSide: after.side,
+          got,
+          gotBefore,
+        });
         setAiStatus("idle");
       } catch (err) {
         setAiError(err instanceof Error ? err.message : String(err));

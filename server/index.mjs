@@ -1,16 +1,21 @@
 /**
  * Minimal local backend for "style 3" (AI play): the only piece of this
- * project that isn't client-only. Its one job is to hold the Gemini API key
- * server-side (read from .env, never sent to the browser) and relay the two
- * captured views + prompt to Gemini 2.5 Flash via its OpenAI-compatible
- * endpoint, returning a parsed {x, z} move.
+ * project that isn't client-only.
  *
- * No framework — Node's built-in http/fetch are enough for one route.
+ *   POST /api/ai-move  — hold the Gemini API key server-side (from .env,
+ *     never sent to the browser), relay the two views + prompt to Gemini
+ *     via its OpenAI-compatible endpoint, return a parsed {x, z} move.
+ *   POST /api/ai-log   — when style-3 logging is on, write one run to a
+ *     local folder (AI_LOG_DIR, default ./ai-runs/<timestamp>/): the
+ *     prompt, the model's reply, the input images, the post-move images
+ *     and whether the prize was got (0/1).
+ *
+ * No framework — Node's built-in http/fetch are enough.
  * Run with: npm run ai-server (needs .env, see .env.example).
  */
 
 import http from "node:http";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 function loadEnvFile() {
@@ -40,6 +45,7 @@ const MAX_BODY_BYTES = 24 * 1024 * 1024; // images are base64, allow headroom
 const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 const UPSTREAM_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const LOG_DIR = path.resolve(process.env.AI_LOG_DIR ?? path.join(process.cwd(), "ai-runs"));
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -78,22 +84,15 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-const server = http.createServer(async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+/** Decode a `data:image/...;base64,...` URL to a Buffer + file extension. */
+function decodeDataUrl(dataUrl) {
+  const m = /^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/s.exec(dataUrl ?? "");
+  if (!m) return null;
+  const ext = m[1] === "jpeg" ? "jpg" : m[1];
+  return { buffer: Buffer.from(m[2], "base64"), ext };
+}
 
-  if (req.method === "OPTIONS") {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-
-  if (req.method !== "POST" || req.url !== "/api/ai-move") {
-    sendJson(res, 404, { error: "not found" });
-    return;
-  }
-
+async function handleAiMove(req, res) {
   if (!API_KEY) {
     sendJson(res, 500, {
       error: "GEMINI_API_KEY is not set. Copy .env.example to .env and fill it in.",
@@ -167,11 +166,82 @@ const server = http.createServer(async (req, res) => {
   }
 
   sendJson(res, 200, { x: parsed.x, z: parsed.z, raw: flatText });
+}
+
+async function handleAiLog(req, res) {
+  let body;
+  try {
+    body = JSON.parse(await readBody(req));
+  } catch (err) {
+    sendJson(res, 400, { error: `invalid request body: ${err.message}` });
+    return;
+  }
+
+  const images = {
+    input_front: decodeDataUrl(body.inputFront),
+    input_side: decodeDataUrl(body.inputSide),
+    result_front: decodeDataUrl(body.resultFront),
+    result_side: decodeDataUrl(body.resultSide),
+  };
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const dir = path.join(LOG_DIR, stamp);
+
+  try {
+    mkdirSync(dir, { recursive: true });
+    for (const [name, decoded] of Object.entries(images)) {
+      if (decoded) writeFileSync(path.join(dir, `${name}.${decoded.ext}`), decoded.buffer);
+    }
+    writeFileSync(
+      path.join(dir, "meta.json"),
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          model: MODEL,
+          prompt: body.prompt ?? null,
+          response: body.response ?? null,
+          move: body.move ?? null,
+          got: body.got ?? null,
+          gotBefore: body.gotBefore ?? null,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch (err) {
+    sendJson(res, 500, { error: `could not write log: ${err.message}` });
+    return;
+  }
+
+  sendJson(res, 200, { dir });
+}
+
+const server = http.createServer(async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/ai-move") {
+    await handleAiMove(req, res);
+    return;
+  }
+  if (req.method === "POST" && req.url === "/api/ai-log") {
+    await handleAiLog(req, res);
+    return;
+  }
+  sendJson(res, 404, { error: "not found" });
 });
 
 server.listen(PORT, () => {
   console.log(`AI move backend listening on http://localhost:${PORT}`);
   console.log(`model: ${MODEL}`);
+  console.log(`logs (when style-3 logging is on): ${LOG_DIR}`);
   if (!API_KEY) {
     console.warn("GEMINI_API_KEY is not set — requests will fail until .env is configured.");
   }

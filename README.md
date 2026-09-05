@@ -103,6 +103,14 @@ npm run lint      # oxlint
 （`setDirectTarget` → `goDirect`）でそのまま実行します。
 バックエンド未起動時やキー未設定時はパネルにエラーメッセージを表示します。
 
+**ローカル保存（ON/OFF ボタン）**： ON のときだけ、1 回の AI プレイごとに
+`ai-runs/<タイムスタンプ>/`（`AI_LOG_DIR` で変更可、`.gitignore` 済み）へ以下を保存します。
+
+- `meta.json` … プロンプト（入力）、モデルの生の応答（出力）、解析した座標、
+  `got`（動作後に景品を獲得したか 0/1）、`gotBefore`（実行前の獲得状態）、モデル名、時刻
+- `input_front.jpg` / `input_side.jpg` … モデルに送った正面・横の画像
+- `result_front.jpg` / `result_side.jpg` … 一連の動作が終わったあとの正面・横の画像
+
 ### PRIZE SIZE パネル（画面右上・常時表示）
 
 景品の 幅 / 高さ / 奥行 をスライダーで変更（コライダーごと作り直し）。

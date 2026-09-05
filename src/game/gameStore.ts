@@ -63,7 +63,7 @@ export interface DirectTarget {
 }
 
 /** Style 3's AI-play status, shown on its panel. */
-export type AiStatus = "idle" | "capturing" | "thinking" | "error";
+export type AiStatus = "idle" | "capturing" | "thinking" | "recording" | "error";
 
 /** Where the prize is (re)spawned by RESET; updated when the prize is dragged. */
 export interface PrizeSpawn {
@@ -157,6 +157,8 @@ export interface GameState {
   aiError: string | null;
   /** The last (X, Z) the AI decided on, for the on-screen readout. */
   aiLastMove: DirectTarget | null;
+  /** Style 3: when on, each AI run is saved to a local folder via the backend. */
+  aiLogging: boolean;
   /** Live estimate of the winch cable tension (N), for the on-screen readout. */
   cableTension: number;
   /** Bumped by RESET to trigger imperative re-initialisation everywhere. */
@@ -197,6 +199,7 @@ const initialState: GameState = {
   aiStatus: "idle",
   aiError: null,
   aiLastMove: null,
+  aiLogging: false,
   cableTension: 0,
   resetNonce: 0,
   debug:
@@ -344,6 +347,10 @@ export function setAiError(aiError: string | null): void {
 
 export function setAiLastMove(aiLastMove: DirectTarget): void {
   setState({ aiLastMove });
+}
+
+export function toggleAiLogging(): void {
+  setState({ aiLogging: !state.aiLogging });
 }
 
 /** Update where RESET (re)spawns the prize — called on prize drag-release. */

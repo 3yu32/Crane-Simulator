@@ -1,9 +1,9 @@
 /**
  * Style 3 (AI play): capture the front and side views as images, send them to
- * Qwen2.5-VL along with the play prompt, and turn its reply into an (X, Z)
- * move. The only network call in this client-only app — it goes to a small
- * local backend (server/index.mjs) that holds the DashScope API key, never
- * the browser directly.
+ * Gemini along with the play prompt, and turn its reply into an (X, Z) move.
+ * The only network calls in this client-only app go to the small local
+ * backend (server/index.mjs) — it holds the API key, and (when style-3
+ * logging is on) also writes each run to a local folder.
  */
 
 import type { WebGLRenderer } from "three";
@@ -79,14 +79,26 @@ function buildPrompt(config: GameConfig): string {
 interface AiMoveResponse {
   x?: unknown;
   z?: unknown;
+  raw?: unknown;
   error?: string;
 }
 
-/** Capture both views, ask Qwen2.5-VL for a move, and clamp it to the crane's travel bounds. */
+export interface AiMoveResult {
+  move: { x: number; z: number };
+  /** The exact prompt text sent to the model. */
+  prompt: string;
+  /** The model's raw reply text. */
+  response: string;
+  /** The (data-URL) images that were sent to the model. */
+  inputFront: string;
+  inputSide: string;
+}
+
+/** Capture both views, ask Gemini for a move, and clamp it to the crane's travel bounds. */
 export async function requestAiMove(
   config: GameConfig,
   gl: WebGLRenderer,
-): Promise<{ x: number; z: number }> {
+): Promise<AiMoveResult> {
   const { front, side } = captureViews(gl);
   const prompt = buildPrompt(config);
 
@@ -113,7 +125,44 @@ export async function requestAiMove(
 
   const { minX, maxX, minZ, maxZ } = config.crane;
   return {
-    x: Math.min(maxX, Math.max(minX, data.x)),
-    z: Math.min(maxZ, Math.max(minZ, data.z)),
+    move: {
+      x: Math.min(maxX, Math.max(minX, data.x)),
+      z: Math.min(maxZ, Math.max(minZ, data.z)),
+    },
+    prompt,
+    response: typeof data.raw === "string" ? data.raw : "",
+    inputFront: front,
+    inputSide: side,
   };
+}
+
+export interface AiLogEntry {
+  prompt: string;
+  response: string;
+  move: { x: number; z: number };
+  inputFront: string;
+  inputSide: string;
+  resultFront: string;
+  resultSide: string;
+  /** 1 = prize was in the goal at the end of the run, 0 = not. */
+  got: 0 | 1;
+  gotBefore: 0 | 1;
+}
+
+/** Persist one style-3 run to the backend's local log folder. */
+export async function postAiLog(entry: AiLogEntry): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${AI_BACKEND_URL}/api/ai-log`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+    });
+  } catch {
+    throw new Error(`記録の保存に失敗しました: AIバックエンド (${AI_BACKEND_URL}) に接続できません。`);
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(`記録の保存に失敗しました: ${data?.error ?? res.status}`);
+  }
 }

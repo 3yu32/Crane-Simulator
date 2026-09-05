@@ -14,6 +14,7 @@ import {
   setControlStyle,
   setDirectTarget,
   setInput,
+  toggleAiLogging,
   useGameState,
 } from "../../game/gameStore";
 
@@ -133,14 +134,24 @@ function DirectMoveControls() {
   );
 }
 
-/** Style 3: Qwen2.5-VL looks at the two views and picks the (X, Z) itself. */
+/** Style 3: Gemini looks at the two views and picks the (X, Z) itself. */
 function AIMoveControls() {
   const craneState = useGameState((s) => s.craneState);
   const aiStatus = useGameState((s) => s.aiStatus);
   const aiError = useGameState((s) => s.aiError);
   const aiLastMove = useGameState((s) => s.aiLastMove);
+  const aiLogging = useGameState((s) => s.aiLogging);
   const idle = craneState === "IDLE";
-  const busy = aiStatus === "capturing" || aiStatus === "thinking";
+  const busy =
+    aiStatus === "capturing" || aiStatus === "thinking" || aiStatus === "recording";
+
+  const buttonLabel = busy
+    ? aiStatus === "capturing"
+      ? "撮影中…"
+      : aiStatus === "recording"
+        ? "記録中…"
+        : "AI思考中…"
+    : "▶ AIプレイ";
 
   return (
     <div className="ai-controls">
@@ -150,7 +161,15 @@ function AIMoveControls() {
         disabled={!idle || busy}
         onClick={() => playAI()}
       >
-        {busy ? (aiStatus === "capturing" ? "撮影中…" : "AI思考中…") : "▶ AIプレイ"}
+        {buttonLabel}
+      </button>
+      <button
+        type="button"
+        className={aiLogging ? "ai-log-toggle on" : "ai-log-toggle"}
+        disabled={busy}
+        onClick={() => toggleAiLogging()}
+      >
+        ローカル保存: {aiLogging ? "ON" : "OFF"}
       </button>
       {aiLastMove && (
         <div className="ai-status-line">
