@@ -1,8 +1,13 @@
 /**
  * Minimal local backend for "style 3" (AI play): the only piece of this
- * project that isn't client-only. Its one job is to hold the DashScope API
- * key server-side (read from .env, never sent to the browser) and relay the
- * two captured views + prompt to Qwen2.5-VL, returning a parsed {x, z} move.
+ * project that isn't client-only. Its one job is to hold the vision-model
+ * API key server-side (read from .env, never sent to the browser) and relay
+ * the two captured views + prompt, returning a parsed {x, z} move.
+ *
+ * Supports two providers behind the same OpenAI-style chat-completions
+ * shape (both DashScope and Gemini expose an OpenAI-compatible endpoint):
+ * set AI_PROVIDER=dashscope (Qwen2.5-VL, default) or AI_PROVIDER=gemini
+ * (Gemini 2.5 Flash) in .env.
  *
  * No framework — Node's built-in http/fetch are enough for one route.
  * Run with: npm run ai-server (needs .env, see .env.example).
@@ -34,11 +39,35 @@ function loadEnvFile() {
 loadEnvFile();
 
 const PORT = Number(process.env.AI_SERVER_PORT ?? 8787);
-const API_KEY = process.env.DASHSCOPE_API_KEY;
-const MODEL = process.env.DASHSCOPE_MODEL ?? "qwen2.5-vl-72b-instruct";
-const DASHSCOPE_URL =
-  "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 const MAX_BODY_BYTES = 24 * 1024 * 1024; // images are base64, allow headroom
+
+const PROVIDERS = {
+  dashscope: {
+    url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    keyEnv: "DASHSCOPE_API_KEY",
+    modelEnv: "DASHSCOPE_MODEL",
+    defaultModel: "qwen2.5-vl-72b-instruct",
+  },
+  gemini: {
+    url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    keyEnv: "GEMINI_API_KEY",
+    modelEnv: "GEMINI_MODEL",
+    defaultModel: "gemini-2.5-flash",
+  },
+};
+
+const PROVIDER_NAME = process.env.AI_PROVIDER ?? "dashscope";
+const PROVIDER = PROVIDERS[PROVIDER_NAME];
+if (!PROVIDER) {
+  console.error(
+    `Unknown AI_PROVIDER "${PROVIDER_NAME}" — expected one of: ${Object.keys(PROVIDERS).join(", ")}`,
+  );
+  process.exit(1);
+}
+
+const API_KEY = process.env[PROVIDER.keyEnv];
+const MODEL = process.env[PROVIDER.modelEnv] ?? PROVIDER.defaultModel;
+const UPSTREAM_URL = PROVIDER.url;
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -95,7 +124,7 @@ const server = http.createServer(async (req, res) => {
 
   if (!API_KEY) {
     sendJson(res, 500, {
-      error: "DASHSCOPE_API_KEY is not set. Copy .env.example to .env and fill it in.",
+      error: `${PROVIDER.keyEnv} is not set. Copy .env.example to .env and fill it in.`,
     });
     return;
   }
@@ -131,7 +160,7 @@ const server = http.createServer(async (req, res) => {
   let upstream;
   let data;
   try {
-    upstream = await fetch(DASHSCOPE_URL, {
+    upstream = await fetch(UPSTREAM_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -141,13 +170,13 @@ const server = http.createServer(async (req, res) => {
     });
     data = await upstream.json();
   } catch (err) {
-    sendJson(res, 502, { error: `could not reach DashScope: ${err.message}` });
+    sendJson(res, 502, { error: `could not reach ${PROVIDER_NAME}: ${err.message}` });
     return;
   }
 
   if (!upstream.ok) {
     sendJson(res, upstream.status, {
-      error: data?.error?.message ?? "DashScope returned an error",
+      error: data?.error?.message ?? `${PROVIDER_NAME} returned an error`,
       raw: data,
     });
     return;
@@ -170,7 +199,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`AI move backend listening on http://localhost:${PORT}`);
+  console.log(`provider: ${PROVIDER_NAME} (model: ${MODEL})`);
   if (!API_KEY) {
-    console.warn("DASHSCOPE_API_KEY is not set — requests will fail until .env is configured.");
+    console.warn(`${PROVIDER.keyEnv} is not set — requests will fail until .env is configured.`);
   }
 });
