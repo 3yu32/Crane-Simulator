@@ -1,13 +1,9 @@
 /**
  * Minimal local backend for "style 3" (AI play): the only piece of this
- * project that isn't client-only. Its one job is to hold the vision-model
- * API key server-side (read from .env, never sent to the browser) and relay
- * the two captured views + prompt, returning a parsed {x, z} move.
- *
- * Supports two providers behind the same OpenAI-style chat-completions
- * shape (both DashScope and Gemini expose an OpenAI-compatible endpoint):
- * set AI_PROVIDER=dashscope (Qwen2.5-VL, default) or AI_PROVIDER=gemini
- * (Gemini 2.5 Flash) in .env.
+ * project that isn't client-only. Its one job is to hold the Gemini API key
+ * server-side (read from .env, never sent to the browser) and relay the two
+ * captured views + prompt to Gemini 2.5 Flash via its OpenAI-compatible
+ * endpoint, returning a parsed {x, z} move.
  *
  * No framework — Node's built-in http/fetch are enough for one route.
  * Run with: npm run ai-server (needs .env, see .env.example).
@@ -41,33 +37,9 @@ loadEnvFile();
 const PORT = Number(process.env.AI_SERVER_PORT ?? 8787);
 const MAX_BODY_BYTES = 24 * 1024 * 1024; // images are base64, allow headroom
 
-const PROVIDERS = {
-  dashscope: {
-    url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-    keyEnv: "DASHSCOPE_API_KEY",
-    modelEnv: "DASHSCOPE_MODEL",
-    defaultModel: "qwen2.5-vl-72b-instruct",
-  },
-  gemini: {
-    url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    keyEnv: "GEMINI_API_KEY",
-    modelEnv: "GEMINI_MODEL",
-    defaultModel: "gemini-2.5-flash",
-  },
-};
-
-const PROVIDER_NAME = process.env.AI_PROVIDER ?? "dashscope";
-const PROVIDER = PROVIDERS[PROVIDER_NAME];
-if (!PROVIDER) {
-  console.error(
-    `Unknown AI_PROVIDER "${PROVIDER_NAME}" — expected one of: ${Object.keys(PROVIDERS).join(", ")}`,
-  );
-  process.exit(1);
-}
-
-const API_KEY = process.env[PROVIDER.keyEnv];
-const MODEL = process.env[PROVIDER.modelEnv] ?? PROVIDER.defaultModel;
-const UPSTREAM_URL = PROVIDER.url;
+const API_KEY = process.env.GEMINI_API_KEY;
+const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
+const UPSTREAM_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -124,7 +96,7 @@ const server = http.createServer(async (req, res) => {
 
   if (!API_KEY) {
     sendJson(res, 500, {
-      error: `${PROVIDER.keyEnv} is not set. Copy .env.example to .env and fill it in.`,
+      error: "GEMINI_API_KEY is not set. Copy .env.example to .env and fill it in.",
     });
     return;
   }
@@ -170,13 +142,13 @@ const server = http.createServer(async (req, res) => {
     });
     data = await upstream.json();
   } catch (err) {
-    sendJson(res, 502, { error: `could not reach ${PROVIDER_NAME}: ${err.message}` });
+    sendJson(res, 502, { error: `could not reach Gemini: ${err.message}` });
     return;
   }
 
   if (!upstream.ok) {
     sendJson(res, upstream.status, {
-      error: data?.error?.message ?? `${PROVIDER_NAME} returned an error`,
+      error: data?.error?.message ?? "Gemini returned an error",
       raw: data,
     });
     return;
@@ -199,8 +171,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`AI move backend listening on http://localhost:${PORT}`);
-  console.log(`provider: ${PROVIDER_NAME} (model: ${MODEL})`);
+  console.log(`model: ${MODEL}`);
   if (!API_KEY) {
-    console.warn(`${PROVIDER.keyEnv} is not set — requests will fail until .env is configured.`);
+    console.warn("GEMINI_API_KEY is not set — requests will fail until .env is configured.");
   }
 });

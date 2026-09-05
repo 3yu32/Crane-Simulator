@@ -29,7 +29,7 @@
 | @react-three/rapier / Rapier3D | 剛体・コライダー・ジョイント・モーターの物理演算 |
 | leva | Debug / チューニング GUI |
 | Vitest | State Machine と取得判定の unit test |
-| Node.js（`http` 標準モジュールのみ） | スタイル3専用の簡易バックエンド（`server/index.mjs`）。DashScope（Qwen2.5-VL）または Gemini（Gemini 2.5 Flash）を呼び出す |
+| Node.js（`http` 標準モジュールのみ） | スタイル3専用の簡易バックエンド（`server/index.mjs`）。Gemini 2.5 Flash を呼び出す |
 
 追加ライブラリの導入理由：
 
@@ -37,7 +37,7 @@
 - **vitest** … Vite プロジェクトと親和性が高く、State Machine の純粋関数テストに使用（spec §35）。
 
 このアプリは基本的にクライアントのみですが、スタイル3（AI プレイ）だけは
-DashScope の API キーをブラウザに置かないよう、依存ゼロの小さなローカル
+Gemini の API キーをブラウザに置かないよう、依存ゼロの小さなローカル
 バックエンドを経由します（フレームワーク不使用、Node 標準の `http`/`fetch` のみ）。
 スタイル1・2 やそれ以外の機能にはバックエンドは一切不要です。
 
@@ -77,25 +77,20 @@ npm run lint      # oxlint
 | --- | --- |
 | **スタイル1** | 上記の「右」「奥」ホールドボタンで 1 軸ずつ移動（デフォルト） |
 | **スタイル2** | X / Z のスライダーで目標座標を指定し、「移動」ボタンで一直線に移動 |
-| **スタイル3** | VLM（Qwen2.5-VL または Gemini 2.5 Flash）が正面・横の画像を見て次の一手 (X, Z) を自分で決める（下記「AI プレイ」参照） |
+| **スタイル3** | Gemini 2.5 Flash が正面・横の画像を見て次の一手 (X, Z) を自分で決める（下記「AI プレイ」参照） |
 
-#### スタイル3: AI プレイ（Qwen2.5-VL / Gemini 2.5 Flash）
+#### スタイル3: AI プレイ（Gemini 2.5 Flash）
 
 このアプリは基本クライアントのみですが、スタイル3だけは API キーをブラウザに置かないよう
-小さなローカルバックエンド（`server/index.mjs`）を経由します。DashScope（Qwen2.5-VL）と
-Gemini（Gemini 2.5 Flash）のどちらか一方を `.env` の `AI_PROVIDER` で選べます
-（両者とも OpenAI 互換の chat completions 形式でリクエストするため、バックエンドの
-コードはプロバイダ共通です）。
+小さなローカルバックエンド（`server/index.mjs`）を経由します。
 
-1. `.env.example` を `.env` にコピー
-2. `AI_PROVIDER` を `dashscope` か `gemini` に設定し、対応する API キーを入力
-   - `dashscope` の場合: `DASHSCOPE_API_KEY`（DashScope／Alibaba Cloud）
-   - `gemini` の場合: `GEMINI_API_KEY`（Google AI Studio / Gemini API）
-3. `npm run ai-server` でバックエンドを起動（`http://localhost:8787`）
-4. `npm run dev` はそのまま別ターミナルで起動
-5. 画面下部で「スタイル3」を選び、「▶ AIプレイ」を押す
+1. `.env.example` を `.env` にコピーし、`GEMINI_API_KEY`（Google AI Studio / Gemini API のキー、
+   https://aistudio.google.com/apikey で取得）を設定
+2. `npm run ai-server` でバックエンドを起動（`http://localhost:8787`）
+3. `npm run dev` はそのまま別ターミナルで起動
+4. 画面下部で「スタイル3」を選び、「▶ AIプレイ」を押す
 
-押すと正面カメラ・横カメラの画像を撮影し、プロンプトと一緒に選んだプロバイダの VLM
+押すと正面カメラ・横カメラの画像を撮影し、プロンプトと一緒に Gemini
 （バックエンド経由）へ送信。返ってきた `{"x":..., "z":...}` をスタイル2と同じ経路
 （`setDirectTarget` → `goDirect`）でそのまま実行します。
 バックエンド未起動時やキー未設定時はパネルにエラーメッセージを表示します。
@@ -175,7 +170,7 @@ src/
 └── main.tsx
 
 server/
-└── index.mjs                  スタイル3専用の簡易バックエンド（DashScope キーを保持）
+└── index.mjs                  スタイル3専用の簡易バックエンド（Gemini キーを保持）
 ```
 
 ## 7. 物理モデルの説明
