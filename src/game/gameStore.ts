@@ -51,14 +51,19 @@ export interface PrizeControls {
  * Style 1 ("hold"): hold 右/奥 to move one axis at a time, as before.
  * Style 2 ("direct"): pick an (X, Z) target directly and the claw travels
  * straight there.
+ * Style 3 ("ai"): Qwen2.5-VL looks at the front/side views and picks the
+ * (X, Z) target itself, then travels there the same way style 2 does.
  */
-export type ControlStyle = "hold" | "direct";
+export type ControlStyle = "hold" | "direct" | "ai";
 
-/** Player-chosen (X, Z) target for control style 2. */
+/** Player-chosen (X, Z) target for control style 2 (and the AI's for style 3). */
 export interface DirectTarget {
   x: number;
   z: number;
 }
+
+/** Style 3's AI-play status, shown on its panel. */
+export type AiStatus = "idle" | "capturing" | "thinking" | "error";
 
 let nextRodId = 0;
 function makeRodId(): string {
@@ -94,6 +99,14 @@ export interface GameState {
   directTarget: DirectTarget;
   /** Bumped when the player submits `directTarget` (style 2's "move" button). */
   directGoNonce: number;
+  /** Bumped by style 3's プレイ button to trigger a capture + AI move. */
+  aiPlayNonce: number;
+  /** Style 3's current phase, for the on-screen status line. */
+  aiStatus: AiStatus;
+  /** Style 3's last error message, if aiStatus is "error". */
+  aiError: string | null;
+  /** The last (X, Z) the AI decided on, for the on-screen readout. */
+  aiLastMove: DirectTarget | null;
   /** Live estimate of the winch cable tension (N), for the on-screen readout. */
   cableTension: number;
   /** Bumped by RESET to trigger imperative re-initialisation everywhere. */
@@ -126,6 +139,10 @@ const initialState: GameState = {
   controlStyle: "hold",
   directTarget: { x: gameConfig.crane.homeX, z: gameConfig.crane.homeZ },
   directGoNonce: 0,
+  aiPlayNonce: 0,
+  aiStatus: "idle",
+  aiError: null,
+  aiLastMove: null,
   cableTension: 0,
   resetNonce: 0,
   debug:
@@ -251,6 +268,23 @@ export function setDirectTarget(patch: Partial<DirectTarget>): void {
 /** Submit `directTarget`; the controller picks this up only while IDLE. */
 export function goDirect(): void {
   setState({ directGoNonce: state.directGoNonce + 1 });
+}
+
+/** Style 3's プレイ button: triggers a capture + AI move (see AIPlayer.tsx). */
+export function playAI(): void {
+  setState({ aiPlayNonce: state.aiPlayNonce + 1, aiStatus: "capturing", aiError: null });
+}
+
+export function setAiStatus(aiStatus: AiStatus): void {
+  setState({ aiStatus });
+}
+
+export function setAiError(aiError: string | null): void {
+  setState({ aiError, aiStatus: aiError ? "error" : state.aiStatus });
+}
+
+export function setAiLastMove(aiLastMove: DirectTarget): void {
+  setState({ aiLastMove });
 }
 
 /**

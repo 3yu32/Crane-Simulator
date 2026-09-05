@@ -19,6 +19,7 @@ import { Crane } from "./Crane/Crane";
 import { Cabinet } from "./Environment/Cabinet";
 import { GoalMarker } from "./Environment/GoalMarker";
 import { SideView } from "./SideView";
+import { AIPlayer } from "./AIPlayer";
 import { computeViewportEvent } from "../game/viewportCamera";
 
 function PlayCamera({ config }: { config: GameConfig }) {
@@ -174,7 +175,10 @@ export function GameScene() {
     <Canvas
       shadows
       dpr={[1, 2]}
-      gl={{ antialias: true }}
+      // preserveDrawingBuffer: style 3's AI capture reads the canvas pixels
+      // on demand (not synced to a render callback), which needs the buffer
+      // to still be there when it does.
+      gl={{ antialias: true, preserveDrawingBuffer: true }}
       camera={{
         position: config.camera.position,
         fov: config.camera.fov,
@@ -194,6 +198,7 @@ export function GameScene() {
       <color attach="background" args={["#0d0f14"]} />
       <HiddenTabPump />
       <PlayCamera config={config} />
+      <AIPlayer config={config} />
       <Lights />
       <Physics
         timeStep={config.physics.timeStep}

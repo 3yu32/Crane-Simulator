@@ -9,6 +9,7 @@ import { enabledButtons } from "../../game/craneStateMachine";
 import { gameConfig } from "../../config/gameConfig";
 import {
   goDirect,
+  playAI,
   resetGame,
   setControlStyle,
   setDirectTarget,
@@ -34,6 +35,13 @@ function StyleToggle() {
         onClick={() => setControlStyle("direct")}
       >
         スタイル2
+      </button>
+      <button
+        type="button"
+        className={controlStyle === "ai" ? "style-btn active" : "style-btn"}
+        onClick={() => setControlStyle("ai")}
+      >
+        スタイル3
       </button>
     </div>
   );
@@ -125,13 +133,44 @@ function DirectMoveControls() {
   );
 }
 
+/** Style 3: Qwen2.5-VL looks at the two views and picks the (X, Z) itself. */
+function AIMoveControls() {
+  const craneState = useGameState((s) => s.craneState);
+  const aiStatus = useGameState((s) => s.aiStatus);
+  const aiError = useGameState((s) => s.aiError);
+  const aiLastMove = useGameState((s) => s.aiLastMove);
+  const idle = craneState === "IDLE";
+  const busy = aiStatus === "capturing" || aiStatus === "thinking";
+
+  return (
+    <div className="ai-controls">
+      <button
+        type="button"
+        className="go-button"
+        disabled={!idle || busy}
+        onClick={() => playAI()}
+      >
+        {busy ? (aiStatus === "capturing" ? "撮影中…" : "AI思考中…") : "▶ AIプレイ"}
+      </button>
+      {aiLastMove && (
+        <div className="ai-status-line">
+          前回の手: X={aiLastMove.x.toFixed(2)} Z={aiLastMove.z.toFixed(2)}
+        </div>
+      )}
+      {aiStatus === "error" && aiError && <div className="ai-status-error">{aiError}</div>}
+    </div>
+  );
+}
+
 export function CraneControls() {
   const controlStyle = useGameState((s) => s.controlStyle);
 
   return (
     <div className="controls">
       <StyleToggle />
-      {controlStyle === "hold" ? <HoldMoveControls /> : <DirectMoveControls />}
+      {controlStyle === "hold" && <HoldMoveControls />}
+      {controlStyle === "direct" && <DirectMoveControls />}
+      {controlStyle === "ai" && <AIMoveControls />}
       <button className="reset-button" type="button" onClick={() => resetGame()}>
         RESET
       </button>

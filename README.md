@@ -29,11 +29,17 @@
 | @react-three/rapier / Rapier3D | 剛体・コライダー・ジョイント・モーターの物理演算 |
 | leva | Debug / チューニング GUI |
 | Vitest | State Machine と取得判定の unit test |
+| Node.js（`http` 標準モジュールのみ） | スタイル3専用の簡易バックエンド（`server/index.mjs`）。DashScope の Qwen2.5-VL を呼び出す |
 
 追加ライブラリの導入理由：
 
 - **leva** … 物理パラメータをブラウザ上でリアルタイムに調整するため（spec §20）。
 - **vitest** … Vite プロジェクトと親和性が高く、State Machine の純粋関数テストに使用（spec §35）。
+
+このアプリは基本的にクライアントのみですが、スタイル3（AI プレイ）だけは
+DashScope の API キーをブラウザに置かないよう、依存ゼロの小さなローカル
+バックエンドを経由します（フレームワーク不使用、Node 標準の `http`/`fetch` のみ）。
+スタイル1・2 やそれ以外の機能にはバックエンドは一切不要です。
 
 ## 3. インストール方法
 
@@ -64,6 +70,28 @@ npm run lint      # oxlint
 | **DEBUG**（右上）または URL に `?debug` | Debug モードの ON/OFF |
 
 ボタンは `pointerdown / pointerup` で実装しており、マウス・タッチ両方で動作します。
+
+### 操作方法スタイル（画面下部）
+
+| スタイル | 内容 |
+| --- | --- |
+| **スタイル1** | 上記の「右」「奥」ホールドボタンで 1 軸ずつ移動（デフォルト） |
+| **スタイル2** | X / Z のスライダーで目標座標を指定し、「移動」ボタンで一直線に移動 |
+| **スタイル3** | Qwen2.5-VL が正面・横の画像を見て次の一手 (X, Z) を自分で決める（下記「AI プレイ」参照） |
+
+#### スタイル3: AI プレイ（Qwen2.5-VL）
+
+このアプリは基本クライアントのみですが、スタイル3だけは API キーをブラウザに置かないよう
+小さなローカルバックエンド（`server/index.mjs`）を経由します。
+
+1. `.env.example` を `.env` にコピーし、`DASHSCOPE_API_KEY`（DashScope／Alibaba Cloud の Qwen API キー）を設定
+2. `npm run ai-server` でバックエンドを起動（`http://localhost:8787`）
+3. `npm run dev` はそのまま別ターミナルで起動
+4. 画面下部で「スタイル3」を選び、「▶ AIプレイ」を押す
+
+押すと正面カメラ・横カメラの画像を撮影し、プロンプトと一緒に Qwen2.5-VL（バックエンド経由）へ送信。
+返ってきた `{"x":..., "z":...}` をスタイル2と同じ経路（`setDirectTarget` → `goDirect`）でそのまま実行します。
+バックエンド未起動時やキー未設定時はパネルにエラーメッセージを表示します。
 
 ### PRIZE SIZE パネル（画面右上・常時表示）
 
@@ -126,13 +154,21 @@ src/
 │   │   ├── Cabinet.tsx        床（一枚板）・壁・枠
 │   │   └── GoalMarker.tsx     獲得領域の可視化（Debug 時のみ）
 │   ├── SideView.tsx           左パネル下の横アングル インセット表示
+│   ├── AIPlayer.tsx           スタイル3: Canvas 内から撮影＋AI へリクエスト
 │   ├── Controls/
-│   │   ├── CraneControls.tsx  右／奥／RESET ボタン
+│   │   ├── CraneControls.tsx  スタイル切替／右／奥／スタイル2・3 パネル／RESET
 │   │   ├── ArmControls.tsx    画面左上の ARM スライダー（常時表示）
-│   │   └── PrizeControls.tsx  画面右上の 景品サイズ スライダー
+│   │   ├── PrizeControls.tsx  画面右上の 景品サイズ スライダー
+│   │   └── BridgeControls.tsx 画面右上の BRIDGE パネル（棒ごとの摩擦/高さ/奥行＋追加/削除）
 │   └── Debug/DebugPanel.tsx
+├── game/
+│   ├── viewportCamera.ts      正面/横カメラのどちらでポインタを判定するか（events.compute）
+│   └── aiPlayer.ts            スタイル3: 画像撮影＋プロンプト生成＋バックエンド呼び出し
 ├── App.tsx
 └── main.tsx
+
+server/
+└── index.mjs                  スタイル3専用の簡易バックエンド（DashScope キーを保持）
 ```
 
 ## 7. 物理モデルの説明
