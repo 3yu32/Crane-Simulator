@@ -23,14 +23,22 @@ export interface ArmControls {
 
 /** Per-rod placement; each rod is dragged independently in the 3D view. */
 export interface RodPlacement {
+  /** Stable identity, independent of array position (rods can be added/removed). */
+  id: string;
   /** Height. */
   y: number;
   /** Depth position along Z. */
   z: number;
+  /** This rod's own surface friction. */
+  friction: number;
 }
 export interface BridgeControls {
   rods: RodPlacement[];
 }
+
+/** Rod count is player-adjustable (add/remove), within sane bounds. */
+export const MIN_RODS = 1;
+export const MAX_RODS = 10;
 
 /** Prize size, adjustable from an on-screen panel. */
 export interface PrizeControls {
@@ -52,12 +60,20 @@ export interface DirectTarget {
   z: number;
 }
 
+let nextRodId = 0;
+function makeRodId(): string {
+  nextRodId += 1;
+  return `rod-${nextRodId}`;
+}
+
 function initialRods(): RodPlacement[] {
-  const { rodCount, rodSpacing, rodHeight, rodCenterZ } = gameConfig.bridge;
+  const { rodCount, rodSpacing, rodHeight, rodCenterZ, friction } = gameConfig.bridge;
   const first = -((rodCount - 1) / 2) * rodSpacing;
   return Array.from({ length: rodCount }, (_, i) => ({
+    id: makeRodId(),
     y: rodHeight,
     z: rodCenterZ + first + i * rodSpacing,
+    friction,
   }));
 }
 
@@ -193,11 +209,28 @@ export function setArmControl<K extends keyof ArmControls>(
   setState({ armControls: { ...state.armControls, [key]: value } });
 }
 
-export function setRodPlacement(index: number, patch: Partial<RodPlacement>): void {
-  const rods = state.bridgeControls.rods.map((r, i) =>
-    i === index ? { ...r, ...patch } : r,
-  );
+export function setRodPlacement(id: string, patch: Partial<RodPlacement>): void {
+  const rods = state.bridgeControls.rods.map((r) => (r.id === id ? { ...r, ...patch } : r));
   setState({ bridgeControls: { rods } });
+}
+
+/** Add a rod (up to {@link MAX_RODS}), placed at the mid-height/depth default. */
+export function addRod(): void {
+  const rods = state.bridgeControls.rods;
+  if (rods.length >= MAX_RODS) return;
+  const { rodHeight, rodCenterZ, friction } = gameConfig.bridge;
+  setState({
+    bridgeControls: {
+      rods: [...rods, { id: makeRodId(), y: rodHeight, z: rodCenterZ, friction }],
+    },
+  });
+}
+
+/** Remove a rod (down to {@link MIN_RODS}). */
+export function removeRod(id: string): void {
+  const rods = state.bridgeControls.rods;
+  if (rods.length <= MIN_RODS) return;
+  setState({ bridgeControls: { rods: rods.filter((r) => r.id !== id) } });
 }
 
 export function setPrizeControl<K extends keyof PrizeControls>(

@@ -17,9 +17,7 @@ import {
 } from "three";
 import type { GameConfig } from "../config/gameConfig";
 import { getState } from "../game/gameStore";
-
-/** Inset placement in CSS pixels (must match `.side-view-frame` in App.css). */
-const SIDE_VIEW_RECT = { left: 14, top: 288, width: 232, height: 136 };
+import { SIDE_VIEW_RECT, sideCameraRef } from "../game/viewportCamera";
 
 function renderInset(
   renderer: WebGLRenderer,
@@ -47,14 +45,23 @@ export function SideView({ config }: { config: GameConfig }) {
   const camera = useThree((s) => s.camera) as TPerspectiveCamera;
   const size = useThree((s) => s.size);
 
-  const sideCamRef = useRef<TPerspectiveCamera>(null);
-  if (sideCamRef.current === null) {
-    sideCamRef.current = new PerspectiveCamera(40, 1, 0.1, 100);
+  const localCamRef = useRef<TPerspectiveCamera | null>(null);
+  if (localCamRef.current === null) {
+    localCamRef.current = new PerspectiveCamera(40, 1, 0.1, 100);
   }
+
+  // Expose the camera to the shared module ref (read by the Canvas' events
+  // `compute`) only from an effect — mutating it during render is not safe.
+  useEffect(() => {
+    sideCameraRef.current = localCamRef.current;
+    return () => {
+      sideCameraRef.current = null;
+    };
+  }, []);
 
   const cz = config.bridge.rodCenterZ;
   useEffect(() => {
-    const sideCam = sideCamRef.current;
+    const sideCam = localCamRef.current;
     if (!sideCam) return;
     sideCam.position.set(8.4, 3.1, cz + 0.1);
     sideCam.lookAt(0.15, 1.55, cz);
@@ -62,7 +69,7 @@ export function SideView({ config }: { config: GameConfig }) {
   }, [cz]);
 
   useFrame(() => {
-    const sideCam = sideCamRef.current;
+    const sideCam = localCamRef.current;
     if (!sideCam) return;
     const swapped = getState().sideViewSwapped;
     const mainCam = swapped ? sideCam : camera;

@@ -37,12 +37,15 @@ export function useDebugConfig(): GameConfig {
         },
       }),
       Bridge: folder({
-        // rod height / spacing are drag-adjustable in the 3D view.
+        // rod height / depth / friction are per-rod, adjustable in the
+        // Bridge panel and by dragging in the 3D view. This is only the
+        // default friction given to a newly added rod.
         rodFriction: {
           value: gameConfig.bridge.friction,
           min: 0,
           max: 2,
           step: 0.05,
+          label: "新規バーの摩擦(初期値)",
         },
       }),
       Claw: folder({

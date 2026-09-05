@@ -311,6 +311,94 @@
   color: #c7ccd6;
 }
 
+.bridge-controls {
+  position: absolute;
+  right: 14px;
+  top: 60px;
+  width: 232px;
+  max-height: calc(100vh - 200px);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px 14px;
+  background: rgba(15, 17, 23, 0.82);
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  touch-action: auto;
+}
+
+.bridge-controls-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #5ad1ff;
+  margin-bottom: 10px;
+}
+
+.bridge-rod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.bridge-rod-card {
+  padding: 8px 10px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+}
+
+.bridge-rod-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c7ccd6;
+  margin-bottom: 6px;
+}
+
+.bridge-rod-remove {
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #5b6270;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #c7ccd6;
+  cursor: pointer;
+}
+
+.bridge-rod-remove:disabled {
+  color: #4a4f59;
+  border-color: #33383f;
+  cursor: not-allowed;
+}
+
+.bridge-add-button {
+  margin-top: 12px;
+  padding: 9px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  border: 1px dashed #5ad1ff;
+  border-radius: 8px;
+  background: rgba(90, 209, 255, 0.08);
+  color: #5ad1ff;
+  cursor: pointer;
+}
+
+.bridge-add-button:disabled {
+  border-color: #444b57;
+  background: transparent;
+  color: #4a4f59;
+  cursor: not-allowed;
+}
+
 .debug-toggle {
   position: absolute;
   top: 14px;

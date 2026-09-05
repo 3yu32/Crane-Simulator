@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef, useMemo, type RefObject } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, events as defaultEvents, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Physics, useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { Vector3 } from "three";
@@ -19,6 +19,7 @@ import { Crane } from "./Crane/Crane";
 import { Cabinet } from "./Environment/Cabinet";
 import { GoalMarker } from "./Environment/GoalMarker";
 import { SideView } from "./SideView";
+import { computeViewportEvent } from "../game/viewportCamera";
 
 function PlayCamera({ config }: { config: GameConfig }) {
   const orbit = useGameState((s) => s.orbit);
@@ -136,8 +137,10 @@ function World({ config }: { config: GameConfig }) {
 
   // Re-mount bodies whose collider shape / mass properties changed in the GUI.
   const prizeKey = `${config.prize.width}|${config.prize.height}|${config.prize.depth}|${config.prize.mass}|${config.prize.friction}`;
-  // rodHeight / rodSpacing are applied imperatively (drag), so not in the key.
-  const bridgeKey = `${config.bridge.rodCount}|${config.bridge.rodLength}|${config.bridge.friction}`;
+  // Rod count/height/depth/friction are all applied imperatively (drag,
+  // add/remove, live collider friction), so only shape-affecting geometry
+  // needs to force a remount here.
+  const bridgeKey = `${config.bridge.rodLength}|${config.bridge.rodRadius}`;
 
   return (
     <>
@@ -178,6 +181,10 @@ export function GameScene() {
         near: 0.1,
         far: 100,
       }}
+      // The SideView inset draws a second camera into part of the canvas;
+      // point-events must raycast with whichever camera actually rendered
+      // the screen region under the pointer, not always the main camera.
+      events={(state) => ({ ...defaultEvents(state), compute: computeViewportEvent })}
       onCreated={(state) => {
         if (import.meta.env.DEV) {
           (window as unknown as { __r3f: unknown }).__r3f = state;

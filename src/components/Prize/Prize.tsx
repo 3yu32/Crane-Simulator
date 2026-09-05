@@ -1,6 +1,6 @@
 /**
  * The prize: a tall cuboid as a dynamic rigid body with one explicit
- * cuboid collider. Decorative meshes do not participate in physics.
+ * cuboid collider — a single plain box, no lid/seam trim.
  */
 
 import { useEffect, type RefObject } from "react";
@@ -160,31 +160,6 @@ export function Prize({
           color="#e8607d"
           roughness={0.55}
           metalness={0.05}
-        />
-      </mesh>
-
-      {/* =========================================================
-          DECORATION ONLY
-          No collider is generated for this mesh.
-          ========================================================= */}
-      <mesh
-        position={[
-          0,
-          h / 2 - h * 0.18,
-          0,
-        ]}
-      >
-        <boxGeometry
-          args={[
-            w * 1.02,
-            h * 0.02,
-            d * 1.02,
-          ]}
-        />
-
-        <meshStandardMaterial
-          color="#b64963"
-          roughness={0.6}
         />
       </mesh>
     </RigidBody>
