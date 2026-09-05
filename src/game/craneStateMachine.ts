@@ -11,6 +11,7 @@ export type CraneState =
   | "MOVING_X"
   | "WAITING_Z"
   | "MOVING_Z"
+  | "MOVING_DIRECT"
   | "OPENING"
   | "DESCENDING"
   | "CLOSING"
@@ -24,6 +25,8 @@ export type CraneEvent =
   | "RELEASE_RIGHT"
   | "PRESS_BACK"
   | "RELEASE_BACK"
+  | "PRESS_GO"
+  | "ARRIVE_DIRECT"
   | "OPEN_DONE"
   | "DESCEND_DONE"
   | "CLOSE_DONE"
@@ -46,6 +49,9 @@ export const AUTO_SEQUENCE: readonly CraneState[] = [
 const TRANSITIONS: Record<CraneState, Partial<Record<CraneEvent, CraneState>>> = {
   IDLE: {
     PRESS_RIGHT: "MOVING_X",
+    // Control style 2: submit an (X, Z) target directly instead of the
+    // hold-to-move sequence.
+    PRESS_GO: "MOVING_DIRECT",
   },
   MOVING_X: {
     // Released by the player, or auto-released when maxX is reached.
@@ -58,6 +64,11 @@ const TRANSITIONS: Record<CraneState, Partial<Record<CraneEvent, CraneState>>> =
     // Released by the player, or auto-released when maxZ is reached.
     // The automatic sequence starts immediately afterwards.
     RELEASE_BACK: "OPENING",
+  },
+  MOVING_DIRECT: {
+    // The claw has arrived at the requested (X, Z); the automatic sequence
+    // starts immediately afterwards, same as the hold-to-move style.
+    ARRIVE_DIRECT: "OPENING",
   },
   OPENING: {
     OPEN_DONE: "DESCENDING",

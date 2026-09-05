@@ -248,7 +248,7 @@ export const gameConfig: GameConfig = {
 
   claw: {
     count: 2,
-    openAngle: 0.36,
+    openAngle: 0.6,
     closedAngle: 0.02,
     limitOpen: 0.62,
     limitClose: 0.55,
@@ -261,7 +261,7 @@ export const gameConfig: GameConfig = {
     openDamping: 6,
     motorMaxImpulse: 12,
 
-    friction: 3.0,
+    friction: 0.1,
     restitution: 0.0,
 
     armLength: 0.42,
@@ -279,12 +279,12 @@ export const gameConfig: GameConfig = {
   },
 
   prize: {
-    width: 0.3,
-    height: 0.58,
-    depth: 0.3,
+    width: 0.52,
+    height: 0.52,
+    depth: 0.9,
 
     mass: 0.34,
-    friction: 1.3,
+    friction: 0.1,
     restitution: 0.02,
 
     linearDamping: 0.35,
@@ -298,13 +298,13 @@ export const gameConfig: GameConfig = {
 
   bridge: {
     rodRadius: 0.045,
-    rodCount: 4,
+    rodCount: 6,
     // Wall-to-wall: floor.bounds X span (4.0) minus the wall thickness.
     rodLength: 3.9,
-    rodSpacing: 0.24,
+    rodSpacing: 0.65,
     rodHeight: 1.05,
     rodCenterZ: -0.1,
-    friction: 0.5,
+    friction: 3.0,
     restitution: 0.0,
   },
 

@@ -45,6 +45,86 @@
   gap: 18px;
 }
 
+.style-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.style-btn {
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  border: 1px solid #444b57;
+  border-radius: 8px;
+  background: rgba(20, 23, 30, 0.85);
+  color: #8b94a3;
+  cursor: pointer;
+}
+
+.style-btn.active {
+  color: #10131a;
+  background: #ffd15c;
+  border-color: #ffd15c;
+}
+
+.direct-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 260px;
+  padding: 10px 14px;
+  background: rgba(15, 17, 23, 0.82);
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+}
+
+.direct-row {
+  display: grid;
+  grid-template-columns: 16px 1fr 44px;
+  align-items: center;
+  column-gap: 8px;
+  font-size: 11px;
+  color: #c7ccd6;
+}
+
+.direct-row input[type="range"] {
+  accent-color: #ff9d3d;
+  cursor: pointer;
+}
+
+.direct-row input[type="range"]:disabled {
+  cursor: not-allowed;
+}
+
+.direct-value {
+  text-align: right;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: #ffd15c;
+}
+
+.go-button {
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  border: none;
+  border-radius: 10px;
+  color: #10131a;
+  background: linear-gradient(#ffd15c, #ff9d3d);
+  box-shadow: 0 4px 0 #b46b1f;
+  cursor: pointer;
+}
+
+.go-button:disabled {
+  background: #3a3f4a;
+  color: #6b7280;
+  box-shadow: 0 4px 0 #23262e;
+  cursor: not-allowed;
+}
+
 .hold-button {
   min-width: 128px;
   padding: 18px 26px;

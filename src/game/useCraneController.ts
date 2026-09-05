@@ -51,6 +51,10 @@ interface ControllerRuntime {
   slackStreak: number;
   /** Low-pass-filtered prong contact force (N). */
   contactEMA: number;
+  /** Control style 2: (X, Z) target while MOVING_DIRECT. */
+  targetX: number;
+  targetZ: number;
+  lastDirectGoNonce: number;
 }
 
 const EPS = 1e-3;
@@ -75,6 +79,10 @@ function approach(current: number, target: number, maxDelta: number): number {
   return current + Math.sign(d) * maxDelta;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 export function useCraneController(
   refs: CraneControllerRefs,
   config: GameConfig,
@@ -92,6 +100,9 @@ export function useCraneController(
     lastResetNonce: 0,
     slackStreak: 0,
     contactEMA: 0,
+    targetX: crane.homeX,
+    targetZ: crane.homeZ,
+    lastDirectGoNonce: 0,
   });
 
   useEffect(() => {
@@ -140,6 +151,16 @@ export function useCraneController(
       dispatch("RESET_DONE");
     }
 
+    /* ---- control style 2: submit an (X, Z) target ---- */
+    if (store.directGoNonce !== r.lastDirectGoNonce) {
+      r.lastDirectGoNonce = store.directGoNonce;
+      if (r.state === "IDLE") {
+        r.targetX = clamp(store.directTarget.x, c.minX, c.maxX);
+        r.targetZ = clamp(store.directTarget.z, c.minZ, c.maxZ);
+        dispatch("PRESS_GO");
+      }
+    }
+
     /* ---- per-state logic ---- */
     switch (r.state) {
       case "IDLE":
@@ -167,6 +188,16 @@ export function useCraneController(
           dispatch("RELEASE_BACK");
         }
         break;
+
+      case "MOVING_DIRECT": {
+        // Travel both axes at once toward the player-chosen target.
+        r.x = approach(r.x, r.targetX, c.xSpeed * dt);
+        r.z = approach(r.z, r.targetZ, c.zSpeed * dt);
+        if (Math.abs(r.x - r.targetX) < EPS && Math.abs(r.z - r.targetZ) < EPS) {
+          dispatch("ARRIVE_DIRECT");
+        }
+        break;
+      }
 
       case "OPENING":
         r.timer += dt;

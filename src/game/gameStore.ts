@@ -39,6 +39,19 @@ export interface PrizeControls {
   depth: number;
 }
 
+/**
+ * Style 1 ("hold"): hold 右/奥 to move one axis at a time, as before.
+ * Style 2 ("direct"): pick an (X, Z) target directly and the claw travels
+ * straight there.
+ */
+export type ControlStyle = "hold" | "direct";
+
+/** Player-chosen (X, Z) target for control style 2. */
+export interface DirectTarget {
+  x: number;
+  z: number;
+}
+
 function initialRods(): RodPlacement[] {
   const { rodCount, rodSpacing, rodHeight, rodCenterZ } = gameConfig.bridge;
   const first = -((rodCount - 1) / 2) * rodSpacing;
@@ -59,6 +72,12 @@ export interface GameState {
   bridgeControls: BridgeControls;
   /** Prize size, adjustable from an on-screen panel. */
   prizeControls: PrizeControls;
+  /** Which on-screen operating style is active. */
+  controlStyle: ControlStyle;
+  /** Style 2's player-chosen (X, Z) target. */
+  directTarget: DirectTarget;
+  /** Bumped when the player submits `directTarget` (style 2's "move" button). */
+  directGoNonce: number;
   /** Live estimate of the winch cable tension (N), for the on-screen readout. */
   cableTension: number;
   /** Bumped by RESET to trigger imperative re-initialisation everywhere. */
@@ -88,6 +107,9 @@ const initialState: GameState = {
     height: gameConfig.prize.height,
     depth: gameConfig.prize.depth,
   },
+  controlStyle: "hold",
+  directTarget: { x: gameConfig.crane.homeX, z: gameConfig.crane.homeZ },
+  directGoNonce: 0,
   cableTension: 0,
   resetNonce: 0,
   debug:
@@ -183,6 +205,19 @@ export function setPrizeControl<K extends keyof PrizeControls>(
   value: PrizeControls[K],
 ): void {
   setState({ prizeControls: { ...state.prizeControls, [key]: value } });
+}
+
+export function setControlStyle(controlStyle: ControlStyle): void {
+  setState({ controlStyle });
+}
+
+export function setDirectTarget(patch: Partial<DirectTarget>): void {
+  setState({ directTarget: { ...state.directTarget, ...patch } });
+}
+
+/** Submit `directTarget`; the controller picks this up only while IDLE. */
+export function goDirect(): void {
+  setState({ directGoNonce: state.directGoNonce + 1 });
 }
 
 /**

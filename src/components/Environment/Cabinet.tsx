@@ -6,6 +6,8 @@
 
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import type { GameConfig } from "../../config/gameConfig";
+import { useGameState } from "../../game/gameStore";
+import { CoordinateRuler } from "./CoordinateRuler";
 
 interface CabinetProps {
   config: GameConfig;
@@ -16,6 +18,7 @@ const WALL_HEIGHT = 3.8;
 const WALL_THICKNESS = 0.1;
 
 export function Cabinet({ config }: CabinetProps) {
+  const controlStyle = useGameState((s) => s.controlStyle);
   const { floor } = config;
   const [minX, maxX, minZ, maxZ] = floor.bounds;
   const top = floor.y;
@@ -88,6 +91,13 @@ export function Cabinet({ config }: CabinetProps) {
         <boxGeometry args={[spanX + 0.12, 0.14, spanZ + 0.12]} />
         <meshStandardMaterial color="#e24a67" roughness={0.5} />
       </mesh>
+
+      {controlStyle === "direct" && (
+        <>
+          <CoordinateRuler config={config} y={floor.y + 0.006} />
+          <CoordinateRuler config={config} y={config.bridge.rodHeight + 0.5} />
+        </>
+      )}
     </group>
   );
 }
