@@ -7,6 +7,7 @@ import { CraneControls } from "./components/Controls/CraneControls";
 import { ArmControls } from "./components/Controls/ArmControls";
 import { PrizeControls } from "./components/Controls/PrizeControls";
 import { BridgeControls } from "./components/Controls/BridgeControls";
+import { PresetControls } from "./components/Controls/PresetControls";
 import { DebugPanel } from "./components/Debug/DebugPanel";
 import { toggleSideView, useGameState } from "./game/gameStore";
 import "./App.css";
@@ -52,6 +53,7 @@ export default function App() {
       <ArmControls />
       <PrizeControls />
       <BridgeControls />
+      <PresetControls />
       <InsetFrame />
       <CraneControls />
       <DebugPanel />

@@ -9,7 +9,8 @@
  * Holding Ctrl while dragging rotates it instead (yaw from horizontal,
  * pitch from vertical). Both temporarily drive the body directly and zero
  * its velocities each move so physics doesn't fight the drag; releasing
- * hands it straight back to gravity/collisions.
+ * hands it straight back to gravity/collisions — and records where it was
+ * left as the new spawn pose (`prizeSpawn`), which RESET restores.
  */
 
 import { useEffect, type RefObject } from "react";
@@ -21,7 +22,7 @@ import {
 import type { ThreeEvent } from "@react-three/fiber";
 import { Euler, Quaternion } from "three";
 import type { GameConfig } from "../../config/gameConfig";
-import { getState } from "../../game/gameStore";
+import { getState, setPrizeSpawn, useGameState } from "../../game/gameStore";
 import { draggingThroughSideCamera } from "../../game/viewportCamera";
 
 interface PrizeProps {
@@ -42,24 +43,26 @@ function clamp(v: number, lo: number, hi: number): number {
 
 export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
   const { prize, physics, floor } = config;
+  const spawn = useGameState((s) => s.prizeSpawn);
 
   const [w, h, d] = [prize.width, prize.height, prize.depth];
-
-  const [px, py, pz] = prize.position;
-  const [rx, ry, rz] = prize.rotation;
+  const [sx, sy, sz] = spawn.position;
+  const [srx, sry, srz] = spawn.rotation;
 
   useEffect(() => {
     resetPrizeRef.current = () => {
       const body = prizeRef.current;
       if (!body) return;
 
-      // Drop the prize just above the highest current rod.
-      const rods = getState().bridgeControls.rods;
-      const maxRodY = rods.reduce((max, rod) => Math.max(max, rod.y), 0);
-      const y = maxRodY + h / 2 + config.bridge.rodRadius + 0.06;
-
-      body.setTranslation({ x: px, y, z: pz }, true);
-      const q = new Quaternion().setFromEuler(new Euler(rx, ry, rz));
+      // Restore the saved spawn pose (default = config.prize.position).
+      const { position, rotation } = getState().prizeSpawn;
+      body.setTranslation(
+        { x: position[0], y: position[1], z: position[2] },
+        true,
+      );
+      const q = new Quaternion().setFromEuler(
+        new Euler(rotation[0], rotation[1], rotation[2]),
+      );
       body.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       body.setAngvel({ x: 0, y: 0, z: 0 }, true);
@@ -68,7 +71,7 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
     return () => {
       resetPrizeRef.current = null;
     };
-  }, [prizeRef, resetPrizeRef, px, py, pz, rx, ry, rz, h, config.bridge.rodRadius]);
+  }, [prizeRef, resetPrizeRef]);
 
   const startDrag = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
@@ -120,6 +123,20 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       document.body.style.cursor = "";
+      // Remember where it was left as the new spawn pose (so RESET / a saved
+      // preset can put it back here).
+      const b = prizeRef.current;
+      if (b) {
+        const p = b.translation();
+        const r = b.rotation();
+        const e = new Euler().setFromQuaternion(
+          new Quaternion(r.x, r.y, r.z, r.w),
+        );
+        setPrizeSpawn({
+          position: [p.x, p.y, p.z],
+          rotation: [e.x, e.y, e.z],
+        });
+      }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -133,8 +150,8 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
       // IMPORTANT:
       // Automatic mesh-based colliders are disabled.
       colliders={false}
-      position={[px, py, pz]}
-      rotation={[rx, ry, rz]}
+      position={[sx, sy, sz]}
+      rotation={[srx, sry, srz]}
       mass={prize.mass}
       linearDamping={prize.linearDamping}
       angularDamping={prize.angularDamping}

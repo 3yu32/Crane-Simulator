@@ -65,6 +65,56 @@ export interface DirectTarget {
 /** Style 3's AI-play status, shown on its panel. */
 export type AiStatus = "idle" | "capturing" | "thinking" | "error";
 
+/** Where the prize is (re)spawned by RESET; updated when the prize is dragged. */
+export interface PrizeSpawn {
+  position: [number, number, number];
+  rotation: [number, number, number];
+}
+
+/**
+ * A saved snapshot of the on-screen setup — bridge rods (count + each rod's
+ * height/depth/friction), the ARM sliders, prize size and prize spawn.
+ * Stored in localStorage so it survives a dev-server restart.
+ */
+export interface SettingsPreset {
+  rods: RodPlacement[];
+  armControls: ArmControls;
+  prizeControls: PrizeControls;
+  prizeSpawn: PrizeSpawn;
+  /** Epoch ms, for the "saved at" label / filled check. */
+  savedAt: number;
+}
+
+/** Number of preset slots (設定1 … 設定N). */
+export const PRESET_SLOTS = 5;
+const PRESET_STORAGE_KEY = "crane-game-presets-v1";
+
+function loadPresets(): (SettingsPreset | null)[] {
+  const empty = Array.from<SettingsPreset | null>({ length: PRESET_SLOTS }).fill(null);
+  if (typeof window === "undefined") return empty;
+  try {
+    const raw = window.localStorage.getItem(PRESET_STORAGE_KEY);
+    if (!raw) return empty;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return empty;
+    return Array.from({ length: PRESET_SLOTS }, (_, i) => {
+      const p = parsed[i];
+      return p && typeof p === "object" ? (p as SettingsPreset) : null;
+    });
+  } catch {
+    return empty;
+  }
+}
+
+function persistPresets(presets: (SettingsPreset | null)[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
+  } catch {
+    // ignore quota / private-mode errors — presets just won't persist
+  }
+}
+
 let nextRodId = 0;
 function makeRodId(): string {
   nextRodId += 1;
@@ -119,6 +169,10 @@ export interface GameState {
   orbit: boolean;
   /** The side view is the big one and the front view is the inset. */
   sideViewSwapped: boolean;
+  /** Prize (re)spawn pose; RESET puts the prize here, drag-release updates it. */
+  prizeSpawn: PrizeSpawn;
+  /** Saved setups, slots 設定1 … 設定N (null = empty). Backed by localStorage. */
+  presets: (SettingsPreset | null)[];
 }
 
 const initialState: GameState = {
@@ -151,6 +205,11 @@ const initialState: GameState = {
   showColliders: false,
   orbit: false,
   sideViewSwapped: false,
+  prizeSpawn: {
+    position: [...gameConfig.prize.position] as [number, number, number],
+    rotation: [...gameConfig.prize.rotation] as [number, number, number],
+  },
+  presets: loadPresets(),
 };
 
 let state: GameState = initialState;
@@ -287,6 +346,11 @@ export function setAiLastMove(aiLastMove: DirectTarget): void {
   setState({ aiLastMove });
 }
 
+/** Update where RESET (re)spawns the prize — called on prize drag-release. */
+export function setPrizeSpawn(prizeSpawn: PrizeSpawn): void {
+  setState({ prizeSpawn });
+}
+
 /**
  * Full reset (spec §21): clear inputs, drop the prize-get flag, bump the nonce.
  * The crane controller observes the nonce and drives the machine through
@@ -298,6 +362,54 @@ export function resetGame(): void {
     input: { right: false, back: false },
     resetNonce: state.resetNonce + 1,
   });
+}
+
+/* ------------------------------------------------------------------ presets */
+
+/** Snapshot the current setup into slot `i` and persist to localStorage. */
+export function savePreset(i: number): void {
+  if (i < 0 || i >= PRESET_SLOTS) return;
+  const preset: SettingsPreset = {
+    rods: state.bridgeControls.rods.map((r) => ({ ...r })),
+    armControls: { ...state.armControls },
+    prizeControls: { ...state.prizeControls },
+    prizeSpawn: {
+      position: [...state.prizeSpawn.position],
+      rotation: [...state.prizeSpawn.rotation],
+    },
+    savedAt: Date.now(),
+  };
+  const presets = state.presets.map((p, idx) => (idx === i ? preset : p));
+  persistPresets(presets);
+  setState({ presets });
+}
+
+/** Apply slot `i` (if filled): bridge/arm/prize-size/prize-spawn, then reset. */
+export function loadPreset(i: number): void {
+  const preset = state.presets[i];
+  if (!preset) return;
+  setState({
+    bridgeControls: {
+      // Fresh ids so the counter can't later collide with a loaded rod.
+      rods: preset.rods.map((r) => ({ ...r, id: makeRodId() })),
+    },
+    armControls: { ...preset.armControls },
+    prizeControls: { ...preset.prizeControls },
+    prizeSpawn: {
+      position: [...preset.prizeSpawn.position],
+      rotation: [...preset.prizeSpawn.rotation],
+    },
+    prizeGet: false,
+    input: { right: false, back: false },
+    resetNonce: state.resetNonce + 1,
+  });
+}
+
+/** Empty slot `i` and persist. */
+export function clearPreset(i: number): void {
+  const presets = state.presets.map((p, idx) => (idx === i ? null : p));
+  persistPresets(presets);
+  setState({ presets });
 }
 
 /* -------------------------------------------------------------------- hooks */
