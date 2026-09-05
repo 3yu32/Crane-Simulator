@@ -11,7 +11,7 @@ import { useBeforePhysicsStep, type RapierRigidBody } from "@react-three/rapier"
 import type { ThreeEvent } from "@react-three/fiber";
 import type { GameConfig } from "../../config/gameConfig";
 import { getState, setRodPlacement, useGameState } from "../../game/gameStore";
-import { SIDE_VIEW_RECT } from "../../game/viewportCamera";
+import { draggingThroughSideCamera } from "../../game/viewportCamera";
 import { Rod } from "./Rod";
 
 interface BridgeProps {
@@ -27,25 +27,6 @@ const DRAG_SCALE = 0.008;
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
-}
-
-/**
- * The side camera looks back along world −X, so its screen-right is world
- * −Z — the opposite of the front camera's. Horizontal drag is authored
- * against the front camera's sense of "right"; when the pointer that started
- * the drag was actually looking through the side camera (the enlarged side
- * view, or the inset before it's swapped in), flip the Z delta so dragging
- * still moves the rod the way it visually appears to move for that camera.
- */
-function draggingThroughSideCamera(clientX: number, clientY: number): boolean {
-  const { left, top, width, height } = SIDE_VIEW_RECT;
-  const inInset =
-    clientX >= left &&
-    clientX <= left + width &&
-    clientY >= top &&
-    clientY <= top + height;
-  const swapped = getState().sideViewSwapped;
-  return inInset ? !swapped : swapped;
 }
 
 export function Bridge({ config }: BridgeProps) {

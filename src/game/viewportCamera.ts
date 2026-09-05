@@ -80,3 +80,22 @@ export function computeViewportEvent(
   state.pointer.set(((ox - vx) / vw) * 2 - 1, -(((oy - vy) / vh) * 2 - 1));
   state.raycaster.setFromCamera(state.pointer, cam);
 }
+
+/**
+ * Which camera a drag that started at (clientX, clientY) is being viewed
+ * through: the side camera looks back along world −X, so its screen-right is
+ * world −Z (the opposite of the front camera's screen-right, which is world
+ * +X). Drag math authored against the front camera needs to flip/retarget
+ * for drags that started over the side camera's viewport — whichever one
+ * that is, main area or inset, depending on the current swap state.
+ */
+export function draggingThroughSideCamera(clientX: number, clientY: number): boolean {
+  const { left, top, width, height } = SIDE_VIEW_RECT;
+  const inInset =
+    clientX >= left &&
+    clientX <= left + width &&
+    clientY >= top &&
+    clientY <= top + height;
+  const swapped = getState().sideViewSwapped;
+  return inInset ? !swapped : swapped;
+}
