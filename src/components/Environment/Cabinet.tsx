@@ -92,7 +92,7 @@ export function Cabinet({ config }: CabinetProps) {
         <meshStandardMaterial color="#e24a67" roughness={0.5} />
       </mesh>
 
-      {controlStyle === "direct" && (
+      {(controlStyle === "direct" || controlStyle === "ai") && (
         <>
           <CoordinateRuler config={config} y={floor.y + 0.006} />
           <CoordinateRuler config={config} y={config.bridge.rodHeight + 0.5} />

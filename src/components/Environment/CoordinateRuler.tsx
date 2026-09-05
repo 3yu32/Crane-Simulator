@@ -1,10 +1,11 @@
 /**
- * Control style 2 only: a coordinate ruler on the floor and walls so the
- * player can read off where an (X, Z) value picked on the Direct-move panel
- * will actually land. X ticks run cyan, Z ticks run orange, matching the
- * panel's axis labels. Rendered twice (see Cabinet): once at the floor and
- * once above the bridge rods, since the rods hide the floor-level grid while
- * the claw is positioning overhead.
+ * Coordinate ruler on the floor and walls (control styles 2 and 3) so the
+ * (X, Z) value — picked on the Direct-move panel, or by the AI reading the
+ * captured images — can be read off the cabinet. X ticks run cyan along the
+ * back wall, Z ticks run orange along the left wall, each row ending in a big
+ * "X" / "Z" so the axis is unambiguous. Rendered twice (see Cabinet): once at
+ * the floor and once above the bridge rods, since the rods hide the
+ * floor-level grid while the claw is positioning overhead.
  */
 
 import { Text } from "@react-three/drei";
@@ -84,6 +85,27 @@ export function CoordinateRuler({ config, y }: CoordinateRulerProps) {
           {z.toFixed(1)}
         </Text>
       ))}
+
+      {/* ---- axis identifiers ---- */}
+      <Text
+        position={[maxX + 0.3, y + LABEL_LIFT, minZ + wallInset]}
+        fontSize={0.2}
+        color={X_COLOR}
+        anchorX="center"
+        anchorY="middle"
+      >
+        X
+      </Text>
+      <Text
+        position={[minX + wallInset, y + LABEL_LIFT, maxZ + 0.3]}
+        rotation={[0, Math.PI / 2, 0]}
+        fontSize={0.2}
+        color={Z_COLOR}
+        anchorX="center"
+        anchorY="middle"
+      >
+        Z
+      </Text>
     </group>
   );
 }
