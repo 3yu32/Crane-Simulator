@@ -132,6 +132,8 @@ export interface PrizeSpawn {
  * Stored in localStorage so it survives a dev-server restart.
  */
 export interface SettingsPreset {
+  /** Saved-shape version; absent on presets that predate the Y↔Z swap. */
+  version?: number;
   rods: RodPlacement[];
   armControls: ArmControls;
   craneBounds: CraneBounds;
@@ -145,6 +147,53 @@ export interface SettingsPreset {
 export const PRESET_SLOTS = 5;
 const PRESET_STORAGE_KEY = "crane-game-presets-v1";
 
+/** Bumped when the saved shape changes; presets without it predate the swap. */
+const PRESET_VERSION = 2;
+
+/**
+ * Presets saved before the Y↔Z axis-name swap (no `version` field) used
+ * `descentLimitY`, `craneBounds.min/maxZ` and rods whose `y` was height and
+ * `z` was depth. Bring those forward so old slots still open.
+ */
+function migratePreset(raw: unknown): SettingsPreset | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Record<string, unknown>;
+  if (p.version === PRESET_VERSION) return p as unknown as SettingsPreset;
+
+  const armIn = (p.armControls ?? {}) as Record<string, unknown>;
+  const armControls = {
+    armPower: Number(armIn.armPower),
+    descentLimitZ: Number(armIn.descentLimitZ ?? armIn.descentLimitY),
+    descentTensionStop: Number(armIn.descentTensionStop),
+  } as ArmControls;
+
+  const cbIn = (p.craneBounds ?? {}) as Record<string, unknown>;
+  const num = (v: unknown, fallback: number) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+  const craneBounds: CraneBounds = {
+    minX: num(cbIn.minX, gameConfig.crane.minX),
+    maxX: num(cbIn.maxX, gameConfig.crane.maxX),
+    minY: num(cbIn.minY ?? cbIn.minZ, gameConfig.crane.minY),
+    maxY: num(cbIn.maxY ?? cbIn.maxZ, gameConfig.crane.maxY),
+  };
+
+  const rodsIn = Array.isArray(p.rods) ? (p.rods as Record<string, unknown>[]) : [];
+  const rods = rodsIn.map((r) => ({
+    id: String(r.id ?? ""),
+    friction: Number(r.friction ?? 0),
+    y: Number(r.z), // pre-swap z held depth
+    z: Number(r.y), // pre-swap y held height
+  })) as RodPlacement[];
+
+  return {
+    rods,
+    armControls,
+    craneBounds,
+    prizeControls: p.prizeControls as PrizeControls,
+    prizeSpawn: p.prizeSpawn as PrizeSpawn,
+    savedAt: Number(p.savedAt ?? Date.now()),
+  };
+}
+
 function loadPresets(): (SettingsPreset | null)[] {
   const empty = Array.from<SettingsPreset | null>({ length: PRESET_SLOTS }).fill(null);
   if (typeof window === "undefined") return empty;
@@ -155,7 +204,7 @@ function loadPresets(): (SettingsPreset | null)[] {
     if (!Array.isArray(parsed)) return empty;
     return Array.from({ length: PRESET_SLOTS }, (_, i) => {
       const p = parsed[i];
-      return p && typeof p === "object" ? (p as SettingsPreset) : null;
+      return p && typeof p === "object" ? migratePreset(p) : null;
     });
   } catch {
     return empty;
@@ -469,6 +518,7 @@ export function resetGame(): void {
 export function savePreset(i: number): void {
   if (i < 0 || i >= PRESET_SLOTS) return;
   const preset: SettingsPreset = {
+    version: PRESET_VERSION,
     rods: state.bridgeControls.rods.map((r) => ({ ...r })),
     armControls: { ...state.armControls },
     craneBounds: { ...state.craneBounds },
