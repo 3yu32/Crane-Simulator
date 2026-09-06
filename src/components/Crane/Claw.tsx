@@ -37,9 +37,11 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
   const tx = claw.armThickness;
   const tz = claw.armDepth;
 
-  // Segment angles (from -Y, +φ toward +X). Upper leans out, lower turns in.
+  // Segment angles (from -Y, +φ toward +X). Upper leans out, lower turns in,
+  // grip tip turns in further still by `gripAngle`.
   const phiUpper = -sign * claw.upperTilt;
   const phiLower = sign * (claw.bendAngle - claw.upperTilt);
+  const phiGrip = phiLower + sign * claw.gripAngle;
 
   const upperEnd: [number, number] = [
     claw.armLength * Math.sin(phiUpper),
@@ -61,8 +63,8 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
     0,
   ];
   const gripMid: [number, number, number] = [
-    lowerEnd[0] + (claw.gripLength / 2) * Math.sin(phiLower),
-    lowerEnd[1] - (claw.gripLength / 2) * Math.cos(phiLower),
+    lowerEnd[0] + (claw.gripLength / 2) * Math.sin(phiGrip),
+    lowerEnd[1] - (claw.gripLength / 2) * Math.cos(phiGrip),
     0,
   ];
 
@@ -109,7 +111,7 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
       <CuboidCollider
         args={[claw.gripThickness / 2, claw.gripLength / 2, claw.gripThickness * 1.3]}
         position={gripMid}
-        rotation={[0, 0, phiLower]}
+        rotation={[0, 0, phiGrip]}
         friction={claw.friction}
         restitution={claw.restitution}
       />
@@ -122,7 +124,7 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
         <boxGeometry args={[tx, claw.lowerLength, tz]} />
         {barMat}
       </mesh>
-      <mesh position={gripMid} rotation={[0, 0, phiLower]} castShadow>
+      <mesh position={gripMid} rotation={[0, 0, phiGrip]} castShadow>
         <boxGeometry
           args={[claw.gripThickness, claw.gripLength, claw.gripThickness * 2.6]}
         />

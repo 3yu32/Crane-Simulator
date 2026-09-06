@@ -129,6 +129,8 @@ export interface GameConfig {
     upperTilt: number;
     /** Bend between the two segments (rad); the lower segment turns inward. */
     bendAngle: number;
+    /** Extra inward bend of the grip tip (rad), relative to the lower segment. */
+    gripAngle: number;
     /** Grip-tip length. */
     gripLength: number;
     /** Grip-tip thickness (its X cross-section); adjustable on the ARM panel. */
@@ -268,6 +270,7 @@ export const gameConfig: GameConfig = {
     lowerLength: 0.4,
     upperTilt: 0.12,
     bendAngle: 0.78,
+    gripAngle: 0,
     gripLength: 0.09,
     gripThickness: 0.028,
     armThickness: 0.05,

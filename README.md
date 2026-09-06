@@ -151,7 +151,7 @@ Debug モード（leva パネル）ではさらに以下を調整できます：
 
 - Prize: mass / friction （幅/高さ/奥行は右上 PRIZE SIZE パネル）
 - Bridge: rod friction （高さ/間隔は棒のドラッグ）
-- Claw: open angle / closed angle / friction
+- Claw: 開き角 / 閉じ角 / 開き限界 / 閉じ限界 / くの字の曲げ角 / 上段の傾き / 爪先の角度（黄色い爪先だけの追加曲げ）/ 爪先の厚み / friction
 - Crane: X speed / Z speed / descent speed
 - `Show Physics Colliders`（コライダーのワイヤーフレーム表示）
 - `Orbit Camera`（固定カメラの代わりに OrbitControls）
