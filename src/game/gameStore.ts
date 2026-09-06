@@ -30,8 +30,41 @@ export interface CraneBounds {
   maxZ: number;
 }
 
-/** Hard stops on how far the travel-limit sliders can be pushed. */
-export const CRANE_BOUND_LIMITS = { minX: -2, maxX: 2, minZ: -2, maxZ: 2 };
+/**
+ * Hard stops on the travel-limit sliders: the cabinet interior
+ * (`floor.bounds`) inset by enough that the claw assembly (and a carried
+ * prize) can't be driven through a wall.
+ */
+const CRANE_WALL_MARGIN = 0.7;
+const [FB_MIN_X, FB_MAX_X, FB_MIN_Z, FB_MAX_Z] = gameConfig.floor.bounds;
+export const CRANE_BOUND_LIMITS = {
+  minX: FB_MIN_X + CRANE_WALL_MARGIN,
+  maxX: FB_MAX_X - CRANE_WALL_MARGIN,
+  minZ: FB_MIN_Z + CRANE_WALL_MARGIN,
+  maxZ: FB_MAX_Z - CRANE_WALL_MARGIN,
+};
+
+function clampToBoundLimits<K extends keyof CraneBounds>(key: K, v: number): number {
+  const L = CRANE_BOUND_LIMITS;
+  return key === "minX" || key === "maxX"
+    ? Math.min(L.maxX, Math.max(L.minX, v))
+    : Math.min(L.maxZ, Math.max(L.minZ, v));
+}
+
+/** Clamp a full CraneBounds to the wall margin and keep a min<max gap. */
+function sanitizeBounds(b: CraneBounds): CraneBounds {
+  const gap = 0.1;
+  const minX = clampToBoundLimits("minX", b.minX);
+  const maxX = clampToBoundLimits("maxX", b.maxX);
+  const minZ = clampToBoundLimits("minZ", b.minZ);
+  const maxZ = clampToBoundLimits("maxZ", b.maxZ);
+  return {
+    minX: Math.min(minX, maxX - gap),
+    maxX: Math.max(maxX, minX + gap),
+    minZ: Math.min(minZ, maxZ - gap),
+    maxZ: Math.max(maxZ, minZ + gap),
+  };
+}
 
 /** Per-rod placement; each rod is dragged independently in the 3D view. */
 export interface RodPlacement {
@@ -213,12 +246,12 @@ const initialState: GameState = {
     descentLimitY: gameConfig.crane.lowestY,
     descentTensionStop: gameConfig.crane.descentTensionStop,
   },
-  craneBounds: {
+  craneBounds: sanitizeBounds({
     minX: gameConfig.crane.minX,
     maxX: gameConfig.crane.maxX,
     minZ: gameConfig.crane.minZ,
     maxZ: gameConfig.crane.maxZ,
-  },
+  }),
   bridgeControls: { rods: initialRods() },
   prizeControls: {
     width: gameConfig.prize.width,
@@ -322,12 +355,12 @@ export function setArmControl<K extends keyof ArmControls>(
   setState({ armControls: { ...state.armControls, [key]: value } });
 }
 
-/** Set one crane travel limit, keeping min < max on that axis. */
+/** Set one crane travel limit, clamped to the wall margin and keeping min < max. */
 export function setCraneBound<K extends keyof CraneBounds>(
   key: K,
   value: number,
 ): void {
-  const b = { ...state.craneBounds, [key]: value };
+  const b = { ...state.craneBounds, [key]: clampToBoundLimits(key, value) };
   const gap = 0.1;
   if (key === "minX") b.minX = Math.min(b.minX, b.maxX - gap);
   if (key === "maxX") b.maxX = Math.max(b.maxX, b.minX + gap);
@@ -454,7 +487,7 @@ export function loadPreset(i: number): void {
       rods: preset.rods.map((r) => ({ ...r, id: makeRodId() })),
     },
     armControls: { ...preset.armControls },
-    craneBounds: { ...(preset.craneBounds ?? state.craneBounds) },
+    craneBounds: sanitizeBounds(preset.craneBounds ?? state.craneBounds),
     prizeControls: { ...preset.prizeControls },
     prizeSpawn: {
       position: [...preset.prizeSpawn.position],
