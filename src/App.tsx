@@ -50,11 +50,13 @@ export default function App() {
 
       <header className="title">3D CRANE GAME</header>
       <PrizeGetBanner />
-      <ArmControls />
-      <PrizeControls />
+      <div className="left-stack">
+        <ArmControls />
+        <InsetFrame />
+        <PrizeControls />
+      </div>
       <BridgeControls />
       <PresetControls />
-      <InsetFrame />
       <CraneControls />
       <DebugPanel />
     </div>

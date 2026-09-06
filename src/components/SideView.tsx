@@ -17,7 +17,7 @@ import {
 } from "three";
 import type { GameConfig } from "../config/gameConfig";
 import { getState } from "../game/gameStore";
-import { SIDE_VIEW_RECT, sideCameraRef } from "../game/viewportCamera";
+import { SIDE_VIEW_RECT, syncSideViewRect, sideCameraRef } from "../game/viewportCamera";
 
 function renderInset(
   renderer: WebGLRenderer,
@@ -75,6 +75,7 @@ export function SideView({ config }: { config: GameConfig }) {
     const swapped = getState().sideViewSwapped;
     const mainCam = swapped ? sideCam : camera;
     const insetCam = swapped ? camera : sideCam;
+    syncSideViewRect(gl.domElement);
     const { left, top, width, height } = SIDE_VIEW_RECT;
 
     // Only sideCam's aspect is ours to change; R3F keeps `camera` synced.

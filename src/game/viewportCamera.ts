@@ -15,8 +15,27 @@
 import type { PerspectiveCamera } from "three";
 import { getState } from "./gameStore";
 
-/** Inset placement in CSS pixels (must match `.side-view-frame` in App.css). */
+/**
+ * Inset placement in CSS pixels within the canvas. Seeded from the App.css
+ * defaults and then kept in sync with the actual `.side-view-frame` element
+ * every frame (see `syncSideViewRect`), so moving the panel in CSS — or the
+ * ARM panel above it growing — never desyncs the render/pick rect.
+ */
 export const SIDE_VIEW_RECT = { left: 14, top: 362, width: 232, height: 124 };
+
+/** Update SIDE_VIEW_RECT from the live DOM position of the inset frame. */
+export function syncSideViewRect(canvas: HTMLCanvasElement): void {
+  if (typeof document === "undefined") return;
+  const frame = document.querySelector(".side-view-frame");
+  if (!frame) return;
+  const f = frame.getBoundingClientRect();
+  const c = canvas.getBoundingClientRect();
+  if (f.width < 1 || f.height < 1) return;
+  SIDE_VIEW_RECT.left = f.left - c.left;
+  SIDE_VIEW_RECT.top = f.top - c.top;
+  SIDE_VIEW_RECT.width = f.width;
+  SIDE_VIEW_RECT.height = f.height;
+}
 
 /**
  * SideView owns and updates this camera every frame; the Canvas `events`

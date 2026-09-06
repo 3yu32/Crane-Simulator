@@ -77,6 +77,12 @@ export interface GameConfig {
      * prize / rods (spec §15). 0 stops only when the cable would start to push.
      */
     descentTensionStop: number;
+    /**
+     * Extra distance (world units) the hub keeps grinding down after it first
+     * meets firm resistance, before it stops and closes — the "押し込み" move
+     * that rams a prize down between the rods. 0 = stop on contact (default).
+     */
+    pushDepth: number;
 
     /** Seconds to hold still after the claws close, before lifting. */
     settleTime: number;
@@ -245,6 +251,7 @@ export const gameConfig: GameConfig = {
 
     hubMass: 0.9,
     descentTensionStop: 9,
+    pushDepth: 0,
 
     settleTime: 0.8,
     releaseTime: 0.7,

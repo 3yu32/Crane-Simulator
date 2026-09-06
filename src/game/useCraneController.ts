@@ -55,6 +55,8 @@ interface ControllerRuntime {
   slackStreak: number;
   /** Low-pass-filtered prong contact force (N). */
   contactEMA: number;
+  /** Hub height at the first firm contact of a descent, or null before then. */
+  contactHubZ: number | null;
   /** Control style 2: (X, Y) target while MOVING_DIRECT. */
   targetX: number;
   targetY: number;
@@ -66,7 +68,7 @@ const EPS = 1e-3;
 const DESCEND_MARGIN = 0.1;
 /** Consecutive slack steps before halting the descent (debounce). */
 const SLACK_STREAK_TO_STOP = 2;
-/** Fraction of the hung weight in contact force that halts the descent at once. */
+/** Fraction of the hung weight in contact force that counts as firm contact. */
 const HARD_CONTACT_FRACTION = 0.55;
 /**
  * Per-step smoothing for the contact force. The cable does not go slack the
@@ -104,6 +106,7 @@ export function useCraneController(
     lastResetNonce: 0,
     slackStreak: 0,
     contactEMA: 0,
+    contactHubZ: null,
     targetX: crane.homeX,
     targetY: crane.homeY,
     lastDirectGoNonce: 0,
@@ -136,6 +139,7 @@ export function useCraneController(
       r.timer = 0;
       r.slackStreak = 0;
       r.contactEMA = 0;
+      r.contactHubZ = null;
     };
 
     // "Cable tension": full hung weight, minus how hard the prongs are pressing
@@ -211,15 +215,21 @@ export function useCraneController(
       case "DESCENDING": {
         r.hubZ = approach(r.hubZ, c.lowestZ, c.descentSpeed * dt);
         const descended = c.topZ - r.hubZ;
-        // A firm contact means the whole arm is taking load: stop at once so
-        // the prong joints never get dragged apart. A gentler slack reading
-        // (cable going limp) still stops after a couple of frames.
-        const hardContact = smoothForce > hangWeight * HARD_CONTACT_FRACTION;
+        // Firm contact = the whole arm is taking load. Note where it first
+        // happened; then keep grinding `pushDepth` further down before giving
+        // up, so the claw can ram a prize down between the rods.
+        const hardContact =
+          descended > DESCEND_MARGIN &&
+          smoothForce > hangWeight * HARD_CONTACT_FRACTION;
+        if (hardContact && r.contactHubZ === null) r.contactHubZ = r.hubZ;
+        const pushedFarEnough =
+          r.contactHubZ !== null && r.hubZ <= r.contactHubZ - c.pushDepth + EPS;
+
         const slackNow =
           descended > DESCEND_MARGIN && tension < c.descentTensionStop;
         r.slackStreak = slackNow ? r.slackStreak + 1 : 0;
         if (
-          (descended > DESCEND_MARGIN && hardContact) ||
+          pushedFarEnough ||
           r.slackStreak >= SLACK_STREAK_TO_STOP ||
           Math.abs(r.hubZ - c.lowestZ) < EPS
         ) {

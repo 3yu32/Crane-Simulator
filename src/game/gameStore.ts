@@ -25,6 +25,11 @@ export interface ArmControls {
    * defaults, so a heavier arm presses down harder and resists being pushed open.
    */
   armWeightN: number;
+  /**
+   * Extra downward travel (world units) after the claw first meets resistance,
+   * before it stops and closes — the "押し込み" move. 0 = stop on contact.
+   */
+  pushDepthM: number;
 }
 
 /** Arm hanging weight (N) with the config default masses — the slider's base. */
@@ -32,6 +37,9 @@ export const DEFAULT_ARM_WEIGHT_N =
   (gameConfig.crane.hubMass + 2 * gameConfig.claw.mass) * -gameConfig.gravity;
 export const ARM_WEIGHT_MIN = Math.round(DEFAULT_ARM_WEIGHT_N);
 export const ARM_WEIGHT_MAX = 90;
+
+export const PUSH_DEPTH_MIN = 0;
+export const PUSH_DEPTH_MAX = 0.5;
 
 /** Player-adjustable X/Y travel limits for the crane (on-screen ARM panel). */
 export interface CraneBounds {
@@ -164,8 +172,9 @@ const PRESET_STORAGE_KEY = "crane-game-presets-v1";
  *  - (no version) predates the Y↔Z axis-name swap
  *  - 2: post-swap field names
  *  - 3: adds armControls.armWeightN
+ *  - 4: adds armControls.pushDepthM
  */
-const PRESET_VERSION = 3;
+const PRESET_VERSION = 4;
 
 const num = (v: unknown, fallback: number) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
@@ -200,6 +209,7 @@ function migratePreset(raw: unknown): SettingsPreset | null {
     descentLimitZ: num(armIn.descentLimitZ ?? armIn.descentLimitY, gameConfig.crane.lowestZ),
     descentTensionStop: num(armIn.descentTensionStop, gameConfig.crane.descentTensionStop),
     armWeightN: num(armIn.armWeightN, DEFAULT_ARM_WEIGHT_N),
+    pushDepthM: num(armIn.pushDepthM, gameConfig.crane.pushDepth),
   };
 
   const cbIn = (p.craneBounds ?? {}) as Record<string, unknown>;
@@ -357,6 +367,7 @@ const initialState: GameState = {
     descentLimitZ: gameConfig.crane.lowestZ,
     descentTensionStop: gameConfig.crane.descentTensionStop,
     armWeightN: DEFAULT_ARM_WEIGHT_N,
+    pushDepthM: gameConfig.crane.pushDepth,
   },
   craneBounds: sanitizeBounds({
     minX: gameConfig.crane.minX,

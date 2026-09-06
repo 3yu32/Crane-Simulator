@@ -10,6 +10,8 @@ import { useState } from "react";
 import {
   ARM_WEIGHT_MAX,
   ARM_WEIGHT_MIN,
+  PUSH_DEPTH_MAX,
+  PUSH_DEPTH_MIN,
   CRANE_BOUND_LIMITS,
   setArmControl,
   setCraneBound,
@@ -39,7 +41,7 @@ const SLIDERS: SliderSpec[] = [
   {
     key: "descentLimitZ",
     label: "下降リミット (Z)",
-    min: 1.2,
+    min: 1.0,
     max: 2.8,
     step: 0.02,
     format: (v) => v.toFixed(2),
@@ -51,6 +53,14 @@ const SLIDERS: SliderSpec[] = [
     max: 30,
     step: 0.5,
     format: (v) => v.toFixed(1),
+  },
+  {
+    key: "pushDepthM",
+    label: "押し込み量 (m)",
+    min: PUSH_DEPTH_MIN,
+    max: PUSH_DEPTH_MAX,
+    step: 0.01,
+    format: (v) => v.toFixed(2),
   },
   {
     key: "armWeightN",
