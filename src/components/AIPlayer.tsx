@@ -15,7 +15,6 @@
 
 import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
-import type { PerspectiveCamera } from "three";
 import type { GameConfig } from "../config/gameConfig";
 import {
   captureViews,
@@ -67,7 +66,6 @@ function waitForCraneReturn(timeoutMs = 45000): Promise<void> {
 export function AIPlayer({ config }: { config: GameConfig }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
-  const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const configRef = useRef(config);
 
   useEffect(() => {
@@ -84,7 +82,7 @@ export function AIPlayer({ config }: { config: GameConfig }) {
       }
       try {
         setAiStatus("thinking");
-        const result = await requestAiMove(configRef.current, gl, scene, camera);
+        const result = await requestAiMove(configRef.current, gl, scene);
         setAiLastMove(result.move);
         setAiLastUsage(toAiUsage(result.usage, result.costUsd));
 
@@ -100,7 +98,7 @@ export function AIPlayer({ config }: { config: GameConfig }) {
         setAiStatus("recording");
         await waitForCraneReturn();
         await delay(1800); // let a dropped prize land before the after-shot
-        const after = captureViews(gl, scene, camera);
+        const after = captureViews(gl, scene);
         const got = getState().prizeGet ? 1 : 0;
         await postAiLog({
           prompt: result.prompt,
@@ -129,7 +127,7 @@ export function AIPlayer({ config }: { config: GameConfig }) {
       }
     });
     return unsubscribe;
-  }, [gl, scene, camera]);
+  }, [gl, scene]);
 
   return null;
 }

@@ -6,42 +6,48 @@
  * logging is on) also writes each run to a local folder.
  */
 
-import type { PerspectiveCamera, Scene, WebGLRenderer } from "three";
+import { PerspectiveCamera, type Scene, type WebGLRenderer } from "three";
 import type { GameConfig } from "../config/gameConfig";
-import { sideCameraRef } from "./viewportCamera";
 
 const AI_BACKEND_URL =
   (import.meta.env.VITE_AI_BACKEND_URL as string | undefined) ?? "http://localhost:8787";
 
-/** Long edge of the captured images. Full canvas res (dpr 2 → 2560) is overkill. */
+/** Long edge of the captured images. */
 const MAX_CAPTURE_WIDTH = 1280;
+/** Capture frame aspect (4:3 fits the tall cabinet better than the 16:9 canvas). */
+const CAPTURE_ASPECT = 4 / 3;
+const CAPTURE_FOV = 40;
+/**
+ * Dedicated capture cameras framed to show the whole cabinet (floor to top
+ * frame) plus the full coordinate ruler, with margin — not the gameplay
+ * cameras, which are cropped tighter for the on-screen view.
+ */
+const FRONT_EYE: [number, number, number] = [0, 3.1, 8.2];
+const SIDE_EYE: [number, number, number] = [8.2, 3.1, 0];
+const LOOK_AT: [number, number, number] = [0, 1.65, 0];
 
 /**
- * Render one camera full-frame onto the canvas and read it back, downscaled.
- * Doing a dedicated pass (rather than cropping the on-screen layout) means the
- * side image is full quality instead of the tiny SideView inset, and neither
- * image has the other view's inset in a corner. The next SideView frame
- * repaints the normal composition.
+ * Render one dedicated camera into a 4:3 region of the canvas and read it
+ * back, downscaled. The next SideView frame repaints the normal on-screen
+ * composition.
  */
-function renderCameraToDataUrl(
+function renderViewToDataUrl(
   gl: WebGLRenderer,
   scene: Scene,
-  cam: PerspectiveCamera,
+  eye: [number, number, number],
 ): string {
   const canvas = gl.domElement;
-  const w = canvas.width;
   const h = canvas.height;
+  const w = Math.min(canvas.width, Math.round(h * CAPTURE_ASPECT));
 
-  const prevAspect = cam.aspect;
-  cam.aspect = w / h;
+  const cam = new PerspectiveCamera(CAPTURE_FOV, CAPTURE_ASPECT, 0.1, 100);
+  cam.position.set(...eye);
+  cam.lookAt(...LOOK_AT);
   cam.updateProjectionMatrix();
 
   gl.setScissorTest(false);
   gl.setViewport(0, 0, w, h);
   gl.render(scene, cam);
-
-  cam.aspect = prevAspect;
-  cam.updateProjectionMatrix();
 
   const scale = Math.min(1, MAX_CAPTURE_WIDTH / w);
   const out = document.createElement("canvas");
@@ -53,16 +59,15 @@ function renderCameraToDataUrl(
   return out.toDataURL("image/jpeg", 0.9);
 }
 
-/** Capture the front (main play camera) and side views as full-quality images. */
+/** Capture the whole scene from the front and from the side. */
 export function captureViews(
   gl: WebGLRenderer,
   scene: Scene,
-  mainCam: PerspectiveCamera,
 ): { front: string; side: string } {
-  const sideCam = sideCameraRef.current;
-  const front = renderCameraToDataUrl(gl, scene, mainCam);
-  const side = sideCam ? renderCameraToDataUrl(gl, scene, sideCam) : front;
-  return { front, side };
+  return {
+    front: renderViewToDataUrl(gl, scene, FRONT_EYE),
+    side: renderViewToDataUrl(gl, scene, SIDE_EYE),
+  };
 }
 
 function buildPrompt(config: GameConfig): string {
@@ -122,9 +127,8 @@ export async function requestAiMove(
   config: GameConfig,
   gl: WebGLRenderer,
   scene: Scene,
-  mainCam: PerspectiveCamera,
 ): Promise<AiMoveResult> {
-  const { front, side } = captureViews(gl, scene, mainCam);
+  const { front, side } = captureViews(gl, scene);
   const prompt = buildPrompt(config);
 
   let res: Response;
