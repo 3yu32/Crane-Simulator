@@ -86,10 +86,20 @@ function buildPrompt(config: GameConfig): string {
   ].join("\n");
 }
 
+/** Token usage as returned by Gemini's OpenAI-compatible endpoint. */
+export interface TokenUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  [k: string]: unknown;
+}
+
 interface AiMoveResponse {
   x?: unknown;
   z?: unknown;
   raw?: unknown;
+  usage?: TokenUsage | null;
+  costUsd?: number | null;
   error?: string;
 }
 
@@ -102,6 +112,9 @@ export interface AiMoveResult {
   /** The (data-URL) images that were sent to the model. */
   inputFront: string;
   inputSide: string;
+  /** Token usage for this call, and the backend's cost estimate (USD). */
+  usage: TokenUsage | null;
+  costUsd: number | null;
 }
 
 /** Capture both views, ask Gemini for a move, and clamp it to the crane's travel bounds. */
@@ -145,6 +158,8 @@ export async function requestAiMove(
     response: typeof data.raw === "string" ? data.raw : "",
     inputFront: front,
     inputSide: side,
+    usage: data.usage ?? null,
+    costUsd: typeof data.costUsd === "number" ? data.costUsd : null,
   };
 }
 
@@ -159,6 +174,8 @@ export interface AiLogEntry {
   /** 1 = prize was in the goal at the end of the run, 0 = not. */
   got: 0 | 1;
   gotBefore: 0 | 1;
+  usage: TokenUsage | null;
+  costUsd: number | null;
 }
 
 /** Persist one style-3 run to the backend's local log folder. */

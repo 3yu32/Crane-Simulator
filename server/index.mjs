@@ -4,18 +4,26 @@
  *
  *   POST /api/ai-move  — hold the Gemini API key server-side (from .env,
  *     never sent to the browser), relay the two views + prompt to Gemini
- *     via its OpenAI-compatible endpoint, return a parsed {x, z} move.
+ *     via its OpenAI-compatible endpoint, return a parsed {x, z} move plus
+ *     the token usage + a cost estimate. Every call is also appended to
+ *     AI_LOG_DIR/usage.jsonl.
  *   POST /api/ai-log   — when style-3 logging is on, write one run to a
  *     local folder (AI_LOG_DIR, default ./ai-runs/<timestamp>/): the
- *     prompt, the model's reply, the input images, the post-move images
- *     and whether the prize was got (0/1).
+ *     prompt, the model's reply, the input images, the post-move images,
+ *     whether the prize was got (0/1), and the token usage + cost.
  *
  * No framework — Node's built-in http/fetch are enough.
  * Run with: npm run ai-server (needs .env, see .env.example).
  */
 
 import http from "node:http";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 function loadEnvFile() {
@@ -46,6 +54,32 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 const UPSTREAM_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const LOG_DIR = path.resolve(process.env.AI_LOG_DIR ?? path.join(process.cwd(), "ai-runs"));
+
+// USD per 1M tokens. Defaults are a Flash-tier estimate — verify current
+// prices at https://ai.google.dev/pricing and override in .env.
+const PRICE_IN_PER_1M = Number(process.env.GEMINI_PRICE_INPUT_PER_1M ?? 0.3);
+const PRICE_OUT_PER_1M = Number(process.env.GEMINI_PRICE_OUTPUT_PER_1M ?? 2.5);
+
+function costUsd(usage) {
+  if (!usage) return null;
+  const inTok = usage.prompt_tokens ?? 0;
+  const total = usage.total_tokens ?? 0;
+  const comp = usage.completion_tokens ?? 0;
+  // total − prompt also covers "thinking"/reasoning tokens, which Gemini
+  // bills at the output rate; fall back to completion_tokens if no total.
+  const outTok = total > inTok ? total - inTok : comp;
+  const c = (inTok / 1e6) * PRICE_IN_PER_1M + (outTok / 1e6) * PRICE_OUT_PER_1M;
+  return Math.round(c * 1e8) / 1e8;
+}
+
+function appendUsageLine(entry) {
+  try {
+    mkdirSync(LOG_DIR, { recursive: true });
+    appendFileSync(path.join(LOG_DIR, "usage.jsonl"), JSON.stringify(entry) + "\n");
+  } catch (err) {
+    console.warn("could not append usage.jsonl:", err.message);
+  }
+}
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -157,15 +191,28 @@ async function handleAiMove(req, res) {
   const flatText = typeof text === "string" ? text : JSON.stringify(text);
   const parsed = extractJson(flatText);
 
+  const usage = data.usage ?? null;
+  const cost = costUsd(usage);
+
   if (!parsed || typeof parsed.x !== "number" || typeof parsed.z !== "number") {
     sendJson(res, 502, {
       error: "could not parse a {x, z} move out of the model's reply",
       raw: flatText,
+      usage,
+      costUsd: cost,
     });
     return;
   }
 
-  sendJson(res, 200, { x: parsed.x, z: parsed.z, raw: flatText });
+  appendUsageLine({
+    timestamp: new Date().toISOString(),
+    model: MODEL,
+    move: { x: parsed.x, z: parsed.z },
+    usage,
+    costUsd: cost,
+  });
+
+  sendJson(res, 200, { x: parsed.x, z: parsed.z, raw: flatText, usage, costUsd: cost });
 }
 
 async function handleAiLog(req, res) {
@@ -203,6 +250,8 @@ async function handleAiLog(req, res) {
           move: body.move ?? null,
           got: body.got ?? null,
           gotBefore: body.gotBefore ?? null,
+          usage: body.usage ?? null,
+          costUsd: body.costUsd ?? null,
         },
         null,
         2,

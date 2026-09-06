@@ -107,13 +107,21 @@ X 軸（左右）、左の壁のオレンジの目盛り（末尾「Z」）が Z
 （`setDirectTarget` → `goDirect`）でそのまま実行します。
 バックエンド未起動時やキー未設定時はパネルにエラーメッセージを表示します。
 
+パネルには前回の手に加えて、その 1 回の消費トークン数と料金見積り（`$…`）も表示されます。
+
 **ローカル保存（ON/OFF ボタン）**： ON のときだけ、1 回の AI プレイごとに
 `ai-runs/<タイムスタンプ>/`（`AI_LOG_DIR` で変更可、`.gitignore` 済み）へ以下を保存します。
 
 - `meta.json` … プロンプト（入力）、モデルの生の応答（出力）、解析した座標、
-  `got`（動作後に景品を獲得したか 0/1）、`gotBefore`（実行前の獲得状態）、モデル名、時刻
+  `got`（動作後に景品を獲得したか 0/1）、`gotBefore`（実行前の獲得状態）、
+  `usage`（消費トークン）、`costUsd`（料金見積り）、モデル名、時刻
 - `input_front.jpg` / `input_side.jpg` … モデルに送った正面・横の画像
 - `result_front.jpg` / `result_side.jpg` … 一連の動作が終わったあとの正面・横の画像
+
+さらに、ローカル保存の ON/OFF に関わらず **毎回**、`ai-runs/usage.jsonl` に 1 行
+（時刻・モデル・座標・`usage`・`costUsd`）が追記されます。料金は `.env` の
+`GEMINI_PRICE_INPUT_PER_1M` / `GEMINI_PRICE_OUTPUT_PER_1M`（1M トークンあたりの USD、
+既定は Flash 相当の概算）から計算します。「thinking」トークンも出力側として計上します。
 
 ### PRIZE SIZE パネル（画面右上・常時表示）
 

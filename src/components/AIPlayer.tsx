@@ -17,16 +17,32 @@ import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import type { PerspectiveCamera } from "three";
 import type { GameConfig } from "../config/gameConfig";
-import { captureViews, postAiLog, requestAiMove } from "../game/aiPlayer";
+import {
+  captureViews,
+  postAiLog,
+  requestAiMove,
+  type TokenUsage,
+} from "../game/aiPlayer";
 import {
   getState,
   goDirect,
   setAiError,
   setAiLastMove,
+  setAiLastUsage,
   setAiStatus,
   setDirectTarget,
   subscribe,
 } from "../game/gameStore";
+
+function toAiUsage(usage: TokenUsage | null, costUsd: number | null) {
+  if (!usage) return null;
+  return {
+    promptTokens: usage.prompt_tokens ?? 0,
+    completionTokens: usage.completion_tokens ?? 0,
+    totalTokens: usage.total_tokens ?? 0,
+    costUsd,
+  };
+}
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -70,6 +86,7 @@ export function AIPlayer({ config }: { config: GameConfig }) {
         setAiStatus("thinking");
         const result = await requestAiMove(configRef.current, gl, scene, camera);
         setAiLastMove(result.move);
+        setAiLastUsage(toAiUsage(result.usage, result.costUsd));
 
         const gotBefore = getState().prizeGet ? 1 : 0;
         setDirectTarget(result.move);
@@ -95,6 +112,8 @@ export function AIPlayer({ config }: { config: GameConfig }) {
           resultSide: after.side,
           got,
           gotBefore,
+          usage: result.usage,
+          costUsd: result.costUsd,
         });
         setAiStatus("idle");
       } catch (err) {

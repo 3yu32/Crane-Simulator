@@ -65,6 +65,14 @@ export interface DirectTarget {
 /** Style 3's AI-play status, shown on its panel. */
 export type AiStatus = "idle" | "capturing" | "thinking" | "recording" | "error";
 
+/** Token usage + cost estimate of the last style-3 request, for the panel. */
+export interface AiUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUsd: number | null;
+}
+
 /** Where the prize is (re)spawned by RESET; updated when the prize is dragged. */
 export interface PrizeSpawn {
   position: [number, number, number];
@@ -157,6 +165,8 @@ export interface GameState {
   aiError: string | null;
   /** The last (X, Z) the AI decided on, for the on-screen readout. */
   aiLastMove: DirectTarget | null;
+  /** Token usage + cost of the last AI request, for the on-screen readout. */
+  aiLastUsage: AiUsage | null;
   /** Style 3: when on, each AI run is saved to a local folder via the backend. */
   aiLogging: boolean;
   /** Live estimate of the winch cable tension (N), for the on-screen readout. */
@@ -199,6 +209,7 @@ const initialState: GameState = {
   aiStatus: "idle",
   aiError: null,
   aiLastMove: null,
+  aiLastUsage: null,
   aiLogging: false,
   cableTension: 0,
   resetNonce: 0,
@@ -347,6 +358,10 @@ export function setAiError(aiError: string | null): void {
 
 export function setAiLastMove(aiLastMove: DirectTarget): void {
   setState({ aiLastMove });
+}
+
+export function setAiLastUsage(aiLastUsage: AiUsage | null): void {
+  setState({ aiLastUsage });
 }
 
 export function toggleAiLogging(): void {

@@ -140,6 +140,7 @@ function AIMoveControls() {
   const aiStatus = useGameState((s) => s.aiStatus);
   const aiError = useGameState((s) => s.aiError);
   const aiLastMove = useGameState((s) => s.aiLastMove);
+  const aiLastUsage = useGameState((s) => s.aiLastUsage);
   const aiLogging = useGameState((s) => s.aiLogging);
   const idle = craneState === "IDLE";
   const busy =
@@ -174,6 +175,12 @@ function AIMoveControls() {
       {aiLastMove && (
         <div className="ai-status-line">
           前回の手: X={aiLastMove.x.toFixed(2)} Z={aiLastMove.z.toFixed(2)}
+        </div>
+      )}
+      {aiLastUsage && (
+        <div className="ai-status-line">
+          {aiLastUsage.totalTokens} tok
+          {aiLastUsage.costUsd != null && ` / $${aiLastUsage.costUsd.toFixed(5)}`}
         </div>
       )}
       {aiStatus === "error" && aiError && <div className="ai-status-error">{aiError}</div>}
