@@ -9,8 +9,8 @@
 export type CraneState =
   | "IDLE"
   | "MOVING_X"
-  | "WAITING_Z"
-  | "MOVING_Z"
+  | "WAITING_Y"
+  | "MOVING_Y"
   | "MOVING_DIRECT"
   | "OPENING"
   | "DESCENDING"
@@ -49,24 +49,24 @@ export const AUTO_SEQUENCE: readonly CraneState[] = [
 const TRANSITIONS: Record<CraneState, Partial<Record<CraneEvent, CraneState>>> = {
   IDLE: {
     PRESS_RIGHT: "MOVING_X",
-    // Control style 2: submit an (X, Z) target directly instead of the
+    // Control style 2: submit an (X, Y) target directly instead of the
     // hold-to-move sequence.
     PRESS_GO: "MOVING_DIRECT",
   },
   MOVING_X: {
     // Released by the player, or auto-released when maxX is reached.
-    RELEASE_RIGHT: "WAITING_Z",
+    RELEASE_RIGHT: "WAITING_Y",
   },
-  WAITING_Z: {
-    PRESS_BACK: "MOVING_Z",
+  WAITING_Y: {
+    PRESS_BACK: "MOVING_Y",
   },
-  MOVING_Z: {
-    // Released by the player, or auto-released when maxZ is reached.
+  MOVING_Y: {
+    // Released by the player, or auto-released when minY is reached.
     // The automatic sequence starts immediately afterwards.
     RELEASE_BACK: "OPENING",
   },
   MOVING_DIRECT: {
-    // The claw has arrived at the requested (X, Z); the automatic sequence
+    // The claw has arrived at the requested (X, Y); the automatic sequence
     // starts immediately afterwards, same as the hold-to-move style.
     ARRIVE_DIRECT: "OPENING",
   },
@@ -117,7 +117,7 @@ export function enabledButtons(state: CraneState): {
 } {
   return {
     right: state === "IDLE" || state === "MOVING_X",
-    back: state === "WAITING_Z" || state === "MOVING_Z",
+    back: state === "WAITING_Y" || state === "MOVING_Y",
   };
 }
 

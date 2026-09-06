@@ -2,6 +2,9 @@
  * Static cabinet: a solid floor (the whole floor is the prize goal — see
  * gameConfig.goal), containment walls, and a decorative frame. All colliders
  * are fixed bodies.
+ *
+ * This file works in Three.js world space: local `minZ/maxZ/cz/spanZ/wallY`
+ * are world Z (= our depth Y) and world Y (= our height Z).
  */
 
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
@@ -21,7 +24,7 @@ export function Cabinet({ config }: CabinetProps) {
   const controlStyle = useGameState((s) => s.controlStyle);
   const { floor } = config;
   const [minX, maxX, minZ, maxZ] = floor.bounds;
-  const top = floor.y;
+  const top = floor.z;
   const midY = top - FLOOR_THICKNESS / 2;
 
   const cx = (minX + maxX) / 2;
@@ -94,8 +97,8 @@ export function Cabinet({ config }: CabinetProps) {
 
       {(controlStyle === "direct" || controlStyle === "ai") && (
         <>
-          <CoordinateRuler config={config} y={floor.y + 0.006} />
-          <CoordinateRuler config={config} y={config.bridge.rodHeight + 0.5} />
+          <CoordinateRuler config={config} worldY={floor.z + 0.006} />
+          <CoordinateRuler config={config} worldY={config.bridge.rodHeight + 0.5} />
         </>
       )}
     </group>

@@ -35,8 +35,8 @@ const SLIDERS: SliderSpec[] = [
     format: (v) => v.toFixed(1),
   },
   {
-    key: "descentLimitY",
-    label: "下降リミット (Y)",
+    key: "descentLimitZ",
+    label: "下降リミット (Z)",
     min: 1.2,
     max: 2.8,
     step: 0.02,
@@ -62,8 +62,8 @@ interface BoundSpec {
 const BOUND_SLIDERS: BoundSpec[] = [
   { key: "minX", label: "X 最小 (左)", min: CRANE_BOUND_LIMITS.minX, max: CRANE_BOUND_LIMITS.maxX },
   { key: "maxX", label: "X 最大 (右)", min: CRANE_BOUND_LIMITS.minX, max: CRANE_BOUND_LIMITS.maxX },
-  { key: "minZ", label: "Z 最小 (奥)", min: CRANE_BOUND_LIMITS.minZ, max: CRANE_BOUND_LIMITS.maxZ },
-  { key: "maxZ", label: "Z 最大 (手前)", min: CRANE_BOUND_LIMITS.minZ, max: CRANE_BOUND_LIMITS.maxZ },
+  { key: "minY", label: "Y 最小 (奥)", min: CRANE_BOUND_LIMITS.minY, max: CRANE_BOUND_LIMITS.maxY },
+  { key: "maxY", label: "Y 最大 (手前)", min: CRANE_BOUND_LIMITS.minY, max: CRANE_BOUND_LIMITS.maxY },
 ];
 
 export function ArmControls() {
@@ -98,7 +98,7 @@ export function ArmControls() {
         className={boundsOpen ? "arm-bounds-toggle open" : "arm-bounds-toggle"}
         onClick={() => setBoundsOpen((v) => !v)}
       >
-        {boundsOpen ? "▾" : "▸"} 可動範囲 (X / Z)
+        {boundsOpen ? "▾" : "▸"} 可動範囲 (X / Y)
       </button>
       {boundsOpen && (
         <div className="arm-bounds-panel">

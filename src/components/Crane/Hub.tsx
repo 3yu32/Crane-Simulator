@@ -33,7 +33,7 @@ export const Hub = forwardRef<RapierRigidBody, HubProps>(function Hub(
       type="kinematicPosition"
       colliders={false}
       collisionGroups={CRANE_GROUPS}
-      position={[crane.homeX, crane.homeY, crane.homeZ]}
+      position={[crane.homeX, crane.homeZ, crane.homeY]}
       ccd={config.physics.ccd}
     >
       <CuboidCollider args={[halfX, halfY, halfZ]} position={[0, 0, 0]} />

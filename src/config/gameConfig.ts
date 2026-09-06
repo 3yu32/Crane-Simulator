@@ -8,14 +8,14 @@
  * Units: meters, kilograms, seconds, radians. World is a "human sized" space
  * roughly 4m wide, so `lengthUnit` stays at the Rapier default of 1.
  *
- * Coordinate system (spec section 4): +X = right, +Y = up, +Z = depth.
+ * Coordinate system used throughout this codebase:
+ *   X = 左右 (right positive)
+ *   Y = 奥行き (depth into the cabinet; the 奥 button lowers Y toward `crane.minY`,
+ *       and the home / drop point is at large Y near the player)
+ *   Z = 高さ (up positive; the claw descends toward `crane.lowestZ`)
  *
- * Spec §4 labels +Z as "奥" (far). To keep a conventional right-handed Three.js
- * setup where the play camera sits in front and +X reads as screen-right
- * (spec §22), this implementation puts the camera on the +Z side and treats
- * *decreasing* Z as "moving deeper into the cabinet". The crane's home / chute
- * is at large Z (near the player); pressing the 奥 button lowers Z toward
- * `crane.minZ`. All spec config field names are kept unchanged.
+ * NOTE: Three.js world axes are fixed (world Y = up, world Z = depth), so at
+ * every Three.js call site the mapping is: world.y ← our Z, world.z ← our Y.
  */
 
 export type Vec3 = readonly [number, number, number];
@@ -35,33 +35,35 @@ export interface GameConfig {
   };
 
   crane: {
-    /** Horizontal travel speed while the "right" button is held (m/s). */
+    /** Horizontal (X) travel speed while the "right" button is held (m/s). */
     xSpeed: number;
-    /** Depth travel speed while the "back" button is held (m/s). */
-    zSpeed: number;
-    /** Vertical descent speed of the claw assembly (m/s). */
+    /** Depth (Y) travel speed while the "back" button is held (m/s). */
+    ySpeed: number;
+    /** Descent speed of the claw assembly along height Z (m/s). */
     descentSpeed: number;
-    /** Vertical lift speed of the claw assembly (m/s). */
+    /** Lift speed of the claw assembly along height Z (m/s). */
     liftSpeed: number;
     /** Return-to-home horizontal speed (m/s). */
     returnSpeed: number;
 
     minX: number;
     maxX: number;
-    minZ: number;
-    maxZ: number;
+    minY: number;
+    maxY: number;
 
     /** Home / rest position of the claw hub (also the drop point over the chute). */
     homeX: number;
+    /** Home depth (Y). */
     homeY: number;
+    /** Home height (Z). */
     homeZ: number;
 
-    /** Fixed Y of the trolley/carriage that the cable hangs from. */
-    carriageY: number;
-    /** Target Y of the claw hub when fully raised (shortest cable). */
-    topY: number;
-    /** Target Y of the claw hub at the bottom of a descent (longest cable). */
-    lowestY: number;
+    /** Fixed height (Z) of the trolley/carriage that the cable hangs from. */
+    carriageZ: number;
+    /** Target height (Z) of the claw hub when fully raised (shortest cable). */
+    topZ: number;
+    /** Target height (Z) of the claw hub at the bottom of a descent (longest cable). */
+    lowestZ: number;
 
     /**
      * Nominal weight the cable holds while the claw hangs (kg-equivalent, used
@@ -172,21 +174,22 @@ export interface GameConfig {
     rodCount: number;
     /** Rod length along X (wall to wall). */
     rodLength: number;
-    /** Center-to-center spacing between adjacent rods, along Z. */
+    /** Center-to-center spacing between adjacent rods, along depth Y. */
     rodSpacing: number;
-    /** Center Y of the rods. */
+    /** Center height (Z) of the rods. */
     rodHeight: number;
-    /** Center Z of the rod array. */
-    rodCenterZ: number;
+    /** Center depth (Y) of the rod array. */
+    rodCenterY: number;
     friction: number;
     restitution: number;
   };
 
   floor: {
-    y: number;
+    /** Floor surface height (Z). */
+    z: number;
     friction: number;
     restitution: number;
-    /** World extents of the floor: [minX, maxX, minZ, maxZ]. */
+    /** Cabinet extents on the floor plane: [minX, maxX, minY, maxY] (Y = depth). */
     bounds: readonly [number, number, number, number];
   };
 
@@ -220,25 +223,25 @@ export const gameConfig: GameConfig = {
 
   crane: {
     xSpeed: 1.3,
-    zSpeed: 1.1,
+    ySpeed: 1.1,
     descentSpeed: 0.5,
     liftSpeed: 0.55,
     returnSpeed: 0.9,
 
     minX: -1.35,
     maxX: 1.0,
-    // "Deeper into the cabinet" is toward smaller Z. minZ is the deepest the
-    // crane can travel; maxZ is the home / front edge.
-    minZ: -0.9,
-    maxZ: 1.1,
+    // "Deeper into the cabinet" is toward smaller Y. minY is the deepest the
+    // crane can travel; maxY is the home / front edge.
+    minY: -0.9,
+    maxY: 1.1,
 
     homeX: -1.35,
-    homeY: 3.0,
-    homeZ: 1.1,
+    homeY: 1.1,
+    homeZ: 3.0,
 
-    carriageY: 3.55,
-    topY: 3.0,
-    lowestY: 1.66,
+    carriageZ: 3.55,
+    topZ: 3.0,
+    lowestZ: 1.66,
 
     hubMass: 0.9,
     descentTensionStop: 9,
@@ -306,13 +309,13 @@ export const gameConfig: GameConfig = {
     rodLength: 3.9,
     rodSpacing: 0.65,
     rodHeight: 1.05,
-    rodCenterZ: -0.1,
+    rodCenterY: -0.1,
     friction: 3.0,
     restitution: 0.0,
   },
 
   floor: {
-    y: 0,
+    z: 0,
     friction: 0.7,
     restitution: 0.0,
     bounds: [-2.0, 2.0, -2.0, 2.0],

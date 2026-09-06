@@ -1,9 +1,12 @@
 /**
  * The "bridge": a player-adjustable set of parallel rods (spec §6) running
  * along X (wall to wall). Each rod is kinematic and independently draggable
- * in the 3D view — vertical drag changes that rod's height, horizontal drag
- * moves it along Z (depth) — and independently carries its own friction and
- * can be added or removed from the on-screen Bridge panel.
+ * in the 3D view — vertical drag changes that rod's height (Z), horizontal
+ * drag moves it along depth (Y) — and independently carries its own friction
+ * and can be added or removed from the on-screen Bridge panel.
+ *
+ * RodPlacement.y = depth, RodPlacement.z = height. Three.js world:
+ * world.y ← rod.z (height), world.z ← rod.y (depth).
  */
 
 import { useRef } from "react";
@@ -20,8 +23,8 @@ interface BridgeProps {
 
 const HEIGHT_MIN = 0.45;
 const HEIGHT_MAX = 2.6;
-const Z_MIN = -1.5;
-const Z_MAX = 1.5;
+const DEPTH_MIN = -1.5;
+const DEPTH_MAX = 1.5;
 /** World units per screen pixel, roughly, for the head-on play camera. */
 const DRAG_SCALE = 0.008;
 
@@ -36,7 +39,7 @@ export function Bridge({ config }: BridgeProps) {
 
   useBeforePhysicsStep(() => {
     for (const r of getState().bridgeControls.rods) {
-      refsById.current.get(r.id)?.setNextKinematicTranslation({ x: 0, y: r.y, z: r.z });
+      refsById.current.get(r.id)?.setNextKinematicTranslation({ x: 0, y: r.z, z: r.y });
     }
   });
 
@@ -46,13 +49,17 @@ export function Bridge({ config }: BridgeProps) {
     const startY = e.clientY;
     const rod = getState().bridgeControls.rods.find((r) => r.id === id);
     if (!rod) return;
-    const { y, z } = rod;
-    const zSign = draggingThroughSideCamera(startX, startY) ? -1 : 1;
+    const { y: depth, z: height } = rod;
+    const depthSign = draggingThroughSideCamera(startX, startY) ? -1 : 1;
 
     const move = (ev: PointerEvent) => {
       setRodPlacement(id, {
-        y: clamp(y - (ev.clientY - startY) * DRAG_SCALE, HEIGHT_MIN, HEIGHT_MAX),
-        z: clamp(z + zSign * (ev.clientX - startX) * DRAG_SCALE, Z_MIN, Z_MAX),
+        z: clamp(height - (ev.clientY - startY) * DRAG_SCALE, HEIGHT_MIN, HEIGHT_MAX),
+        y: clamp(
+          depth + depthSign * (ev.clientX - startX) * DRAG_SCALE,
+          DEPTH_MIN,
+          DEPTH_MAX,
+        ),
       });
     };
     const up = () => {
@@ -73,7 +80,7 @@ export function Bridge({ config }: BridgeProps) {
             ref={(el) => {
               refsById.current.set(rod.id, el);
             }}
-            position={[0, rod.y, rod.z]}
+            position={[0, rod.z, rod.y]}
             radius={bridge.rodRadius}
             length={bridge.rodLength}
             friction={rod.friction}
@@ -81,7 +88,7 @@ export function Bridge({ config }: BridgeProps) {
           />
           {/* invisible per-rod drag handle */}
           <mesh
-            position={[0, rod.y, rod.z]}
+            position={[0, rod.z, rod.y]}
             onPointerDown={(e) => startDrag(rod.id, e)}
             onPointerOver={(e) => {
               e.stopPropagation();

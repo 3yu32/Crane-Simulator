@@ -4,7 +4,7 @@
  *
  *   POST /api/ai-move  — hold the Gemini API key server-side (from .env,
  *     never sent to the browser), relay the two views + prompt to Gemini
- *     via its OpenAI-compatible endpoint, return a parsed {x, z} move plus
+ *     via its OpenAI-compatible endpoint, return a parsed {x, y} move plus
  *     the token usage + a cost estimate. Every call is also appended to
  *     AI_LOG_DIR/usage.jsonl.
  *   POST /api/ai-log   — when style-3 logging is on, write one run to a
@@ -194,9 +194,9 @@ async function handleAiMove(req, res) {
   const usage = data.usage ?? null;
   const cost = costUsd(usage);
 
-  if (!parsed || typeof parsed.x !== "number" || typeof parsed.z !== "number") {
+  if (!parsed || typeof parsed.x !== "number" || typeof parsed.y !== "number") {
     sendJson(res, 502, {
-      error: "could not parse a {x, z} move out of the model's reply",
+      error: "could not parse a {x, y} move out of the model's reply",
       raw: flatText,
       usage,
       costUsd: cost,
@@ -210,14 +210,14 @@ async function handleAiMove(req, res) {
     timestamp: new Date().toISOString(),
     model: MODEL,
     strategy,
-    move: { x: parsed.x, z: parsed.z },
+    move: { x: parsed.x, y: parsed.y },
     usage,
     costUsd: cost,
   });
 
   sendJson(res, 200, {
     x: parsed.x,
-    z: parsed.z,
+    y: parsed.y,
     strategy,
     raw: flatText,
     usage,

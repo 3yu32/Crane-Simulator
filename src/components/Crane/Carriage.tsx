@@ -1,7 +1,7 @@
 /**
  * The trolley/carriage at the top of the cabinet (spec §8). Kinematic-position
- * body: the cabinet's X/Z motors drive it directly (spec §3). Its Y is fixed —
- * vertical motion happens on the cable below it.
+ * body: the cabinet's X/Y motors drive it directly (spec §3). Its height (Z)
+ * is fixed — vertical motion happens on the cable below it.
  */
 
 import { forwardRef } from "react";
@@ -26,7 +26,7 @@ export const Carriage = forwardRef<RapierRigidBody, CarriageProps>(
         type="kinematicPosition"
         colliders={false}
         collisionGroups={CRANE_GROUPS}
-        position={[crane.homeX, crane.carriageY, crane.homeZ]}
+        position={[crane.homeX, crane.carriageZ, crane.homeY]}
       >
         <CuboidCollider args={[0.28, 0.06, 0.24]} position={[0, 0, 0]} />
         <mesh castShadow>

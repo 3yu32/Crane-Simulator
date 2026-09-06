@@ -86,11 +86,11 @@ function HoldMoveControls() {
   );
 }
 
-/** Style 2: pick an (X, Z) target and go there directly. */
+/** Style 2: pick an (X, Y) target and go there directly. */
 function DirectMoveControls() {
   const craneState = useGameState((s) => s.craneState);
   const target = useGameState((s) => s.directTarget);
-  const { minX, maxX, minZ, maxZ } = useGameState((s) => s.craneBounds);
+  const { minX, maxX, minY, maxY } = useGameState((s) => s.craneBounds);
   const idle = craneState === "IDLE";
 
   return (
@@ -109,17 +109,17 @@ function DirectMoveControls() {
         <span className="direct-value">{target.x.toFixed(2)}</span>
       </div>
       <div className="direct-row">
-        <span className="direct-label">Z</span>
+        <span className="direct-label">Y</span>
         <input
           type="range"
-          min={minZ}
-          max={maxZ}
+          min={minY}
+          max={maxY}
           step={0.01}
-          value={target.z}
+          value={target.y}
           disabled={!idle}
-          onChange={(e) => setDirectTarget({ z: Number(e.target.value) })}
+          onChange={(e) => setDirectTarget({ y: Number(e.target.value) })}
         />
-        <span className="direct-value">{target.z.toFixed(2)}</span>
+        <span className="direct-value">{target.y.toFixed(2)}</span>
       </div>
       <button
         type="button"
@@ -133,7 +133,7 @@ function DirectMoveControls() {
   );
 }
 
-/** Style 3: Gemini looks at the two views and picks the (X, Z) itself. */
+/** Style 3: Gemini looks at the two views and picks the (X, Y) itself. */
 function AIMoveControls() {
   const craneState = useGameState((s) => s.craneState);
   const aiStatus = useGameState((s) => s.aiStatus);
@@ -177,7 +177,7 @@ function AIMoveControls() {
       )}
       {aiLastMove && (
         <div className="ai-status-line">
-          前回の手: X={aiLastMove.x.toFixed(2)} Z={aiLastMove.z.toFixed(2)}
+          前回の手: X={aiLastMove.x.toFixed(2)} Y={aiLastMove.y.toFixed(2)}
         </div>
       )}
       {aiLastUsage && (

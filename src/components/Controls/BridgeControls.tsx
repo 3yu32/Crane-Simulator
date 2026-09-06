@@ -16,8 +16,8 @@ import {
 
 const HEIGHT_MIN = 0.45;
 const HEIGHT_MAX = 2.6;
-const Z_MIN = -1.5;
-const Z_MAX = 1.5;
+const DEPTH_MIN = -1.5;
+const DEPTH_MAX = 1.5;
 
 export function BridgeControls() {
   const rods = useGameState((s) => s.bridgeControls.rods);
@@ -61,26 +61,26 @@ export function BridgeControls() {
                 min={HEIGHT_MIN}
                 max={HEIGHT_MAX}
                 step={0.01}
-                value={rod.y}
-                onChange={(e) =>
-                  setRodPlacement(rod.id, { y: e.currentTarget.valueAsNumber })
-                }
-              />
-              <span className="arm-control-value">{rod.y.toFixed(2)}</span>
-            </label>
-            <label className="arm-control-row">
-              <span className="arm-control-label">奥行き</span>
-              <input
-                type="range"
-                min={Z_MIN}
-                max={Z_MAX}
-                step={0.01}
                 value={rod.z}
                 onChange={(e) =>
                   setRodPlacement(rod.id, { z: e.currentTarget.valueAsNumber })
                 }
               />
               <span className="arm-control-value">{rod.z.toFixed(2)}</span>
+            </label>
+            <label className="arm-control-row">
+              <span className="arm-control-label">奥行き</span>
+              <input
+                type="range"
+                min={DEPTH_MIN}
+                max={DEPTH_MAX}
+                step={0.01}
+                value={rod.y}
+                onChange={(e) =>
+                  setRodPlacement(rod.id, { y: e.currentTarget.valueAsNumber })
+                }
+              />
+              <span className="arm-control-value">{rod.y.toFixed(2)}</span>
             </label>
           </div>
         ))}

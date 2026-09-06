@@ -59,14 +59,15 @@ export function SideView({ config }: { config: GameConfig }) {
     };
   }, []);
 
-  const cz = config.bridge.rodCenterZ;
+  // Rod depth centre, which is world Z.
+  const worldZ = config.bridge.rodCenterY;
   useEffect(() => {
     const sideCam = localCamRef.current;
     if (!sideCam) return;
-    sideCam.position.set(8.4, 3.1, cz + 0.1);
-    sideCam.lookAt(0.15, 1.55, cz);
+    sideCam.position.set(8.4, 3.1, worldZ + 0.1);
+    sideCam.lookAt(0.15, 1.55, worldZ);
     sideCam.updateProjectionMatrix();
-  }, [cz]);
+  }, [worldZ]);
 
   useFrame(() => {
     const sideCam = localCamRef.current;

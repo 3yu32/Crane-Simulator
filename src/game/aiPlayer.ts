@@ -80,7 +80,7 @@ export function captureViews(
 }
 
 function buildPrompt(config: GameConfig): string {
-  const { minX, maxX, minZ, maxZ } = config.crane;
+  const { minX, maxX, minY, maxY } = config.crane;
   return [
     "あなたはクレーンゲームのプレイヤーです。",
     "この画像を見て、次の1手を決めてください。",
@@ -91,13 +91,13 @@ function buildPrompt(config: GameConfig): string {
     "機体内には座標の目盛りが表示されています。",
     "奥の壁に沿った水色の目盛り（末尾に「X」）が X 軸（左右）で、" +
       `${minX.toFixed(2)} から ${maxX.toFixed(2)} の範囲です。`,
-    "左の壁に沿ったオレンジの目盛り（末尾に「Z」）が Z 軸（奥行き）で、" +
-      `${minZ.toFixed(2)}（最も奥）から ${maxZ.toFixed(2)}（最も手前）の範囲です。`,
+    "左の壁に沿ったオレンジの目盛り（末尾に「Y」）が Y 軸（奥行き）で、" +
+      `${minY.toFixed(2)}（最も奥）から ${maxY.toFixed(2)}（最も手前）の範囲です。`,
     "目盛りを読み取って、景品の中心の真上にアームが来る座標を答えてください。",
     "",
     "strategy には今回の狙い・作戦を日本語50文字以内で簡潔に書いてください。",
     "出力はJSONのみ。他の文章は一切含めないでください。",
-    '形式: {"strategy": "作戦(50文字以内)", "x": 数値, "z": 数値}',
+    '形式: {"strategy": "作戦(50文字以内)", "x": 数値, "y": 数値}',
   ].join("\n");
 }
 
@@ -111,7 +111,7 @@ export interface TokenUsage {
 
 interface AiMoveResponse {
   x?: unknown;
-  z?: unknown;
+  y?: unknown;
   strategy?: unknown;
   raw?: unknown;
   usage?: TokenUsage | null;
@@ -120,7 +120,7 @@ interface AiMoveResponse {
 }
 
 export interface AiMoveResult {
-  move: { x: number; z: number };
+  move: { x: number; y: number };
   /** The model's one-line strategy note (≤ ~50 chars), or "" if it gave none. */
   strategy: string;
   /** The exact prompt text sent to the model. */
@@ -161,15 +161,15 @@ export async function requestAiMove(
   if (!res.ok || !data) {
     throw new Error(data?.error ?? `AIバックエンドがエラーを返しました (${res.status})`);
   }
-  if (typeof data.x !== "number" || typeof data.z !== "number") {
+  if (typeof data.x !== "number" || typeof data.y !== "number") {
     throw new Error(data.error ?? "AIの応答から座標を取得できませんでした。");
   }
 
-  const { minX, maxX, minZ, maxZ } = config.crane;
+  const { minX, maxX, minY, maxY } = config.crane;
   return {
     move: {
       x: Math.min(maxX, Math.max(minX, data.x)),
-      z: Math.min(maxZ, Math.max(minZ, data.z)),
+      y: Math.min(maxY, Math.max(minY, data.y)),
     },
     strategy: typeof data.strategy === "string" ? data.strategy.trim() : "",
     prompt,
@@ -185,7 +185,7 @@ export interface AiLogEntry {
   prompt: string;
   response: string;
   strategy: string;
-  move: { x: number; z: number };
+  move: { x: number; y: number };
   inputFront: string;
   inputSide: string;
   resultFront: string;

@@ -34,8 +34,8 @@ describe("craneReducer - happy path", () => {
     }
     expect(states).toEqual([
       "MOVING_X",
-      "WAITING_Z",
-      "MOVING_Z",
+      "WAITING_Y",
+      "MOVING_Y",
       "OPENING",
       "DESCENDING",
       "CLOSING",
@@ -61,8 +61,8 @@ describe("craneReducer - guards", () => {
   });
 
   it("enables the back button only after releasing right", () => {
-    expect(run(["PRESS_RIGHT", "RELEASE_RIGHT"])).toBe("WAITING_Z");
-    expect(run(["PRESS_RIGHT", "RELEASE_RIGHT", "PRESS_BACK"])).toBe("MOVING_Z");
+    expect(run(["PRESS_RIGHT", "RELEASE_RIGHT"])).toBe("WAITING_Y");
+    expect(run(["PRESS_RIGHT", "RELEASE_RIGHT", "PRESS_BACK"])).toBe("MOVING_Y");
   });
 
   it("starts the automatic sequence as soon as back is released", () => {
@@ -77,7 +77,7 @@ describe("craneReducer - reset", () => {
     const froms: CraneState[] = [
       "IDLE",
       "MOVING_X",
-      "MOVING_Z",
+      "MOVING_Y",
       "DESCENDING",
       "CLOSING",
       "RETURNING",
@@ -102,9 +102,9 @@ describe("enabledButtons", () => {
     expect(enabledButtons("IDLE")).toEqual({ right: true, back: false });
     expect(enabledButtons("MOVING_X")).toEqual({ right: true, back: false });
   });
-  it("enables back in WAITING_Z and while moving Z", () => {
-    expect(enabledButtons("WAITING_Z")).toEqual({ right: false, back: true });
-    expect(enabledButtons("MOVING_Z")).toEqual({ right: false, back: true });
+  it("enables back in WAITING_Y and while moving Z", () => {
+    expect(enabledButtons("WAITING_Y")).toEqual({ right: false, back: true });
+    expect(enabledButtons("MOVING_Y")).toEqual({ right: false, back: true });
   });
   it("disables both during the automatic sequence", () => {
     for (const s of [
@@ -131,8 +131,8 @@ describe("clawShouldBeOpen", () => {
     for (const s of [
       "IDLE",
       "MOVING_X",
-      "WAITING_Z",
-      "MOVING_Z",
+      "WAITING_Y",
+      "MOVING_Y",
       "CLOSING",
       "LIFTING",
       "RETURNING",

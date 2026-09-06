@@ -42,7 +42,7 @@ export function Crane({
         hubRef={hubRef}
         clawOpenRef={clawOpenRef}
         contactForceRef={contactForceRef}
-        hubPosition={[crane.homeX, crane.homeY, crane.homeZ]}
+        hubPosition={[crane.homeX, crane.homeZ, crane.homeY]}
       />
     </>
   );

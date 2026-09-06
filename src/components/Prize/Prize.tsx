@@ -34,8 +34,9 @@ interface PrizeProps {
 
 const DRAG_SCALE = 0.008;
 const ROTATE_SCALE = 0.012;
-const Y_MIN = 0.3;
-const Y_MAX = 3.2;
+// Vertical drag clamp, in world Y (= our height axis Z).
+const HEIGHT_MIN = 0.3;
+const HEIGHT_MAX = 3.2;
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
@@ -113,7 +114,7 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
         const z = usingSideCam
           ? clamp(startPos.z - dx * DRAG_SCALE, minZ, maxZ)
           : startPos.z;
-        const y = clamp(startPos.y - dy * DRAG_SCALE, Y_MIN, Y_MAX);
+        const y = clamp(startPos.y - dy * DRAG_SCALE, HEIGHT_MIN, HEIGHT_MAX);
         b.setTranslation({ x, y, z }, true);
       }
       b.setLinvel({ x: 0, y: 0, z: 0 }, true);

@@ -127,7 +127,7 @@ export function useDebugConfig(): GameConfig {
       }),
       Crane: folder({
         xSpeed: { value: gameConfig.crane.xSpeed, min: 0.2, max: 3, step: 0.05 },
-        zSpeed: { value: gameConfig.crane.zSpeed, min: 0.2, max: 3, step: 0.05 },
+        ySpeed: { value: gameConfig.crane.ySpeed, min: 0.2, max: 3, step: 0.05 },
         descentSpeed: {
           value: gameConfig.crane.descentSpeed,
           min: 0.2,
@@ -155,15 +155,15 @@ export function useDebugConfig(): GameConfig {
       claw: { ...gameConfig.claw, motorStiffness: armControls.armPower },
       crane: {
         ...gameConfig.crane,
-        lowestY: armControls.descentLimitY,
+        lowestZ: armControls.descentLimitZ,
         descentTensionStop: armControls.descentTensionStop,
         minX: craneBounds.minX,
         maxX: craneBounds.maxX,
-        minZ: craneBounds.minZ,
-        maxZ: craneBounds.maxZ,
+        minY: craneBounds.minY,
+        maxY: craneBounds.maxY,
         // Keep home inside the (possibly shrunk) travel range.
         homeX: Math.min(Math.max(gameConfig.crane.homeX, craneBounds.minX), craneBounds.maxX),
-        homeZ: Math.min(Math.max(gameConfig.crane.homeZ, craneBounds.minZ), craneBounds.maxZ),
+        homeY: Math.min(Math.max(gameConfig.crane.homeY, craneBounds.minY), craneBounds.maxY),
       },
       prize: {
         ...gameConfig.prize,
@@ -203,19 +203,19 @@ export function useDebugConfig(): GameConfig {
       crane: {
         ...withArm.crane,
         xSpeed: values.xSpeed,
-        zSpeed: values.zSpeed,
+        ySpeed: values.ySpeed,
         descentSpeed: values.descentSpeed,
       },
     };
   }, [
     debug,
     armControls.armPower,
-    armControls.descentLimitY,
+    armControls.descentLimitZ,
     armControls.descentTensionStop,
     craneBounds.minX,
     craneBounds.maxX,
-    craneBounds.minZ,
-    craneBounds.maxZ,
+    craneBounds.minY,
+    craneBounds.maxY,
     prizeControls.width,
     prizeControls.height,
     prizeControls.depth,
@@ -233,7 +233,7 @@ export function useDebugConfig(): GameConfig {
     values.gripThickness,
     values.clawFriction,
     values.xSpeed,
-    values.zSpeed,
+    values.ySpeed,
     values.descentSpeed,
   ]);
 }

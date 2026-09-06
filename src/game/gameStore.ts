@@ -15,19 +15,19 @@ import type { CraneState } from "./craneStateMachine";
 export interface ArmControls {
   /** Claw motor stiffness — grip / closing force. */
   armPower: number;
-  /** Hard lower bound for the arm's descent (hub Y). */
-  descentLimitY: number;
+  /** Hard lower bound for the arm's descent (hub height Z). */
+  descentLimitZ: number;
   /** Descent stops when the cable tension (N) drops below this (cable slack). */
   descentTensionStop: number;
 }
 
-/** Player-adjustable X/Z travel limits for the crane (on-screen ARM panel). */
+/** Player-adjustable X/Y travel limits for the crane (on-screen ARM panel). */
 export interface CraneBounds {
   minX: number;
   maxX: number;
-  /** minZ is the deepest into the cabinet; maxZ is the front / home edge. */
-  minZ: number;
-  maxZ: number;
+  /** minY is the deepest into the cabinet; maxY is the front / home edge. */
+  minY: number;
+  maxY: number;
 }
 
 /**
@@ -36,19 +36,19 @@ export interface CraneBounds {
  * prize) can't be driven through a wall.
  */
 const CRANE_WALL_MARGIN = 0.7;
-const [FB_MIN_X, FB_MAX_X, FB_MIN_Z, FB_MAX_Z] = gameConfig.floor.bounds;
+const [FB_MIN_X, FB_MAX_X, FB_MIN_Y, FB_MAX_Y] = gameConfig.floor.bounds;
 export const CRANE_BOUND_LIMITS = {
   minX: FB_MIN_X + CRANE_WALL_MARGIN,
   maxX: FB_MAX_X - CRANE_WALL_MARGIN,
-  minZ: FB_MIN_Z + CRANE_WALL_MARGIN,
-  maxZ: FB_MAX_Z - CRANE_WALL_MARGIN,
+  minY: FB_MIN_Y + CRANE_WALL_MARGIN,
+  maxY: FB_MAX_Y - CRANE_WALL_MARGIN,
 };
 
 function clampToBoundLimits<K extends keyof CraneBounds>(key: K, v: number): number {
   const L = CRANE_BOUND_LIMITS;
   return key === "minX" || key === "maxX"
     ? Math.min(L.maxX, Math.max(L.minX, v))
-    : Math.min(L.maxZ, Math.max(L.minZ, v));
+    : Math.min(L.maxY, Math.max(L.minY, v));
 }
 
 /** Clamp a full CraneBounds to the wall margin and keep a min<max gap. */
@@ -56,13 +56,13 @@ function sanitizeBounds(b: CraneBounds): CraneBounds {
   const gap = 0.1;
   const minX = clampToBoundLimits("minX", b.minX);
   const maxX = clampToBoundLimits("maxX", b.maxX);
-  const minZ = clampToBoundLimits("minZ", b.minZ);
-  const maxZ = clampToBoundLimits("maxZ", b.maxZ);
+  const minY = clampToBoundLimits("minY", b.minY);
+  const maxY = clampToBoundLimits("maxY", b.maxY);
   return {
     minX: Math.min(minX, maxX - gap),
     maxX: Math.max(maxX, minX + gap),
-    minZ: Math.min(minZ, maxZ - gap),
-    maxZ: Math.max(maxZ, minZ + gap),
+    minY: Math.min(minY, maxY - gap),
+    maxY: Math.max(maxY, minY + gap),
   };
 }
 
@@ -70,9 +70,9 @@ function sanitizeBounds(b: CraneBounds): CraneBounds {
 export interface RodPlacement {
   /** Stable identity, independent of array position (rods can be added/removed). */
   id: string;
-  /** Height. */
+  /** Depth position along Y. */
   y: number;
-  /** Depth position along Z. */
+  /** Height (Z). */
   z: number;
   /** This rod's own surface friction. */
   friction: number;
@@ -98,15 +98,15 @@ export interface PrizeControls {
  * Style 1 ("hold"): hold 右/奥 to move one axis at a time, as before.
  * Style 2 ("direct"): pick an (X, Z) target directly and the claw travels
  * straight there.
- * Style 3 ("ai"): Qwen2.5-VL looks at the front/side views and picks the
- * (X, Z) target itself, then travels there the same way style 2 does.
+ * Style 3 ("ai"): the vision model looks at the front/side views and picks
+ * the (X, Y) target itself, then travels there the same way style 2 does.
  */
 export type ControlStyle = "hold" | "direct" | "ai";
 
-/** Player-chosen (X, Z) target for control style 2 (and the AI's for style 3). */
+/** Player-chosen (X, Y) target for control style 2 (and the AI's for style 3). */
 export interface DirectTarget {
   x: number;
-  z: number;
+  y: number;
 }
 
 /** Style 3's AI-play status, shown on its panel. */
@@ -178,12 +178,12 @@ function makeRodId(): string {
 }
 
 function initialRods(): RodPlacement[] {
-  const { rodCount, rodSpacing, rodHeight, rodCenterZ, friction } = gameConfig.bridge;
+  const { rodCount, rodSpacing, rodHeight, rodCenterY, friction } = gameConfig.bridge;
   const first = -((rodCount - 1) / 2) * rodSpacing;
   return Array.from({ length: rodCount }, (_, i) => ({
     id: makeRodId(),
-    y: rodHeight,
-    z: rodCenterZ + first + i * rodSpacing,
+    y: rodCenterY + first + i * rodSpacing,
+    z: rodHeight,
     friction,
   }));
 }
@@ -245,14 +245,14 @@ const initialState: GameState = {
   input: { right: false, back: false },
   armControls: {
     armPower: gameConfig.claw.motorStiffness,
-    descentLimitY: gameConfig.crane.lowestY,
+    descentLimitZ: gameConfig.crane.lowestZ,
     descentTensionStop: gameConfig.crane.descentTensionStop,
   },
   craneBounds: sanitizeBounds({
     minX: gameConfig.crane.minX,
     maxX: gameConfig.crane.maxX,
-    minZ: gameConfig.crane.minZ,
-    maxZ: gameConfig.crane.maxZ,
+    minY: gameConfig.crane.minY,
+    maxY: gameConfig.crane.maxY,
   }),
   bridgeControls: { rods: initialRods() },
   prizeControls: {
@@ -261,7 +261,7 @@ const initialState: GameState = {
     depth: gameConfig.prize.depth,
   },
   controlStyle: "hold",
-  directTarget: { x: gameConfig.crane.homeX, z: gameConfig.crane.homeZ },
+  directTarget: { x: gameConfig.crane.homeX, y: gameConfig.crane.homeY },
   directGoNonce: 0,
   aiPlayNonce: 0,
   aiStatus: "idle",
@@ -367,8 +367,8 @@ export function setCraneBound<K extends keyof CraneBounds>(
   const gap = 0.1;
   if (key === "minX") b.minX = Math.min(b.minX, b.maxX - gap);
   if (key === "maxX") b.maxX = Math.max(b.maxX, b.minX + gap);
-  if (key === "minZ") b.minZ = Math.min(b.minZ, b.maxZ - gap);
-  if (key === "maxZ") b.maxZ = Math.max(b.maxZ, b.minZ + gap);
+  if (key === "minY") b.minY = Math.min(b.minY, b.maxY - gap);
+  if (key === "maxY") b.maxY = Math.max(b.maxY, b.minY + gap);
   setState({ craneBounds: b });
 }
 
@@ -381,10 +381,10 @@ export function setRodPlacement(id: string, patch: Partial<RodPlacement>): void 
 export function addRod(): void {
   const rods = state.bridgeControls.rods;
   if (rods.length >= MAX_RODS) return;
-  const { rodHeight, rodCenterZ, friction } = gameConfig.bridge;
+  const { rodHeight, rodCenterY, friction } = gameConfig.bridge;
   setState({
     bridgeControls: {
-      rods: [...rods, { id: makeRodId(), y: rodHeight, z: rodCenterZ, friction }],
+      rods: [...rods, { id: makeRodId(), y: rodCenterY, z: rodHeight, friction }],
     },
   });
 }
