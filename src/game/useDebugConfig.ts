@@ -150,11 +150,20 @@ export function useDebugConfig(): GameConfig {
   return useMemo<GameConfig>(() => {
     // Layer 2: always-applied ARM panel controls. (The bridge rods are placed
     // directly from the store by the Bridge component — not via config.)
+    const baseWeight =
+      (gameConfig.crane.hubMass + 2 * gameConfig.claw.mass) * -gameConfig.gravity;
+    const weightFactor = armControls.armWeightN / baseWeight;
+
     const withArm: GameConfig = {
       ...gameConfig,
-      claw: { ...gameConfig.claw, motorStiffness: armControls.armPower },
+      claw: {
+        ...gameConfig.claw,
+        motorStiffness: armControls.armPower,
+        mass: gameConfig.claw.mass * weightFactor,
+      },
       crane: {
         ...gameConfig.crane,
+        hubMass: gameConfig.crane.hubMass * weightFactor,
         lowestZ: armControls.descentLimitZ,
         descentTensionStop: armControls.descentTensionStop,
         minX: craneBounds.minX,
@@ -212,6 +221,7 @@ export function useDebugConfig(): GameConfig {
     armControls.armPower,
     armControls.descentLimitZ,
     armControls.descentTensionStop,
+    armControls.armWeightN,
     craneBounds.minX,
     craneBounds.maxX,
     craneBounds.minY,

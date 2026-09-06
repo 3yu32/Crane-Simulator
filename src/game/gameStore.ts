@@ -19,7 +19,19 @@ export interface ArmControls {
   descentLimitZ: number;
   /** Descent stops when the cable tension (N) drops below this (cable slack). */
   descentTensionStop: number;
+  /**
+   * Total hanging weight of the arm (hub + both prongs), in newtons. Scales the
+   * hub bookkeeping mass and the physical prong mass together from their config
+   * defaults, so a heavier arm presses down harder and resists being pushed open.
+   */
+  armWeightN: number;
 }
+
+/** Arm hanging weight (N) with the config default masses — the slider's base. */
+export const DEFAULT_ARM_WEIGHT_N =
+  (gameConfig.crane.hubMass + 2 * gameConfig.claw.mass) * -gameConfig.gravity;
+export const ARM_WEIGHT_MIN = Math.round(DEFAULT_ARM_WEIGHT_N);
+export const ARM_WEIGHT_MAX = 90;
 
 /** Player-adjustable X/Y travel limits for the crane (on-screen ARM panel). */
 export interface CraneBounds {
@@ -147,50 +159,59 @@ export interface SettingsPreset {
 export const PRESET_SLOTS = 5;
 const PRESET_STORAGE_KEY = "crane-game-presets-v1";
 
-/** Bumped when the saved shape changes; presets without it predate the swap. */
-const PRESET_VERSION = 2;
-
 /**
- * Presets saved before the Y↔Z axis-name swap (no `version` field) used
- * `descentLimitY`, `craneBounds.min/maxZ` and rods whose `y` was height and
- * `z` was depth. Bring those forward so old slots still open.
+ * Bumped when the saved shape changes:
+ *  - (no version) predates the Y↔Z axis-name swap
+ *  - 2: post-swap field names
+ *  - 3: adds armControls.armWeightN
  */
+const PRESET_VERSION = 3;
+
+const num = (v: unknown, fallback: number) =>
+  Number.isFinite(Number(v)) ? Number(v) : fallback;
+
+/** Bring a stored preset of any past version up to the current shape. */
 function migratePreset(raw: unknown): SettingsPreset | null {
   if (!raw || typeof raw !== "object") return null;
   const p = raw as Record<string, unknown>;
   if (p.version === PRESET_VERSION) return p as unknown as SettingsPreset;
 
+  // Pre-swap presets (no version) named the axes the other way round.
+  const preSwap = p.version === undefined;
+
   const armIn = (p.armControls ?? {}) as Record<string, unknown>;
-  const armControls = {
-    armPower: Number(armIn.armPower),
-    descentLimitZ: Number(armIn.descentLimitZ ?? armIn.descentLimitY),
-    descentTensionStop: Number(armIn.descentTensionStop),
-  } as ArmControls;
+  const armControls: ArmControls = {
+    armPower: num(armIn.armPower, gameConfig.claw.motorStiffness),
+    descentLimitZ: num(armIn.descentLimitZ ?? armIn.descentLimitY, gameConfig.crane.lowestZ),
+    descentTensionStop: num(armIn.descentTensionStop, gameConfig.crane.descentTensionStop),
+    armWeightN: num(armIn.armWeightN, DEFAULT_ARM_WEIGHT_N),
+  };
 
   const cbIn = (p.craneBounds ?? {}) as Record<string, unknown>;
-  const num = (v: unknown, fallback: number) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
   const craneBounds: CraneBounds = {
     minX: num(cbIn.minX, gameConfig.crane.minX),
     maxX: num(cbIn.maxX, gameConfig.crane.maxX),
-    minY: num(cbIn.minY ?? cbIn.minZ, gameConfig.crane.minY),
-    maxY: num(cbIn.maxY ?? cbIn.maxZ, gameConfig.crane.maxY),
+    minY: num(preSwap ? cbIn.minZ : cbIn.minY, gameConfig.crane.minY),
+    maxY: num(preSwap ? cbIn.maxZ : cbIn.maxY, gameConfig.crane.maxY),
   };
 
   const rodsIn = Array.isArray(p.rods) ? (p.rods as Record<string, unknown>[]) : [];
   const rods = rodsIn.map((r) => ({
     id: String(r.id ?? ""),
-    friction: Number(r.friction ?? 0),
-    y: Number(r.z), // pre-swap z held depth
-    z: Number(r.y), // pre-swap y held height
+    friction: num(r.friction, 0),
+    // Pre-swap: y held height, z held depth — flip to the current meaning.
+    y: preSwap ? num(r.z, 0) : num(r.y, 0),
+    z: preSwap ? num(r.y, 0) : num(r.z, 0),
   })) as RodPlacement[];
 
   return {
+    version: PRESET_VERSION,
     rods,
     armControls,
     craneBounds,
     prizeControls: p.prizeControls as PrizeControls,
     prizeSpawn: p.prizeSpawn as PrizeSpawn,
-    savedAt: Number(p.savedAt ?? Date.now()),
+    savedAt: num(p.savedAt, Date.now()),
   };
 }
 
@@ -296,6 +317,7 @@ const initialState: GameState = {
     armPower: gameConfig.claw.motorStiffness,
     descentLimitZ: gameConfig.crane.lowestZ,
     descentTensionStop: gameConfig.crane.descentTensionStop,
+    armWeightN: DEFAULT_ARM_WEIGHT_N,
   },
   craneBounds: sanitizeBounds({
     minX: gameConfig.crane.minX,

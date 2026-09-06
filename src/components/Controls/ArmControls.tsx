@@ -8,6 +8,8 @@
 
 import { useState } from "react";
 import {
+  ARM_WEIGHT_MAX,
+  ARM_WEIGHT_MIN,
   CRANE_BOUND_LIMITS,
   setArmControl,
   setCraneBound,
@@ -49,6 +51,14 @@ const SLIDERS: SliderSpec[] = [
     max: 30,
     step: 0.5,
     format: (v) => v.toFixed(1),
+  },
+  {
+    key: "armWeightN",
+    label: "アームの重さ (N)",
+    min: ARM_WEIGHT_MIN,
+    max: ARM_WEIGHT_MAX,
+    step: 1,
+    format: (v) => v.toFixed(0),
   },
 ];
 
