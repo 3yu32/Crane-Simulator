@@ -255,6 +255,10 @@ export function useCraneController(
     }
 
     /* ---- publish outputs ---- */
+    // Snap into range in case the travel limits were tightened mid-session.
+    r.x = clamp(r.x, c.minX, c.maxX);
+    r.z = clamp(r.z, c.minZ, c.maxZ);
+
     clawOpenRef.current = clawShouldBeOpen(r.state);
     setCraneState(r.state);
     setCableTension(tension);

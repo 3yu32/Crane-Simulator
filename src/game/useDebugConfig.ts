@@ -23,6 +23,7 @@ import {
 export function useDebugConfig(): GameConfig {
   const debug = useGameState((s) => s.debug);
   const armControls = useGameState((s) => s.armControls);
+  const craneBounds = useGameState((s) => s.craneBounds);
   const prizeControls = useGameState((s) => s.prizeControls);
 
   const values = useControls(
@@ -149,6 +150,13 @@ export function useDebugConfig(): GameConfig {
         ...gameConfig.crane,
         lowestY: armControls.descentLimitY,
         descentTensionStop: armControls.descentTensionStop,
+        minX: craneBounds.minX,
+        maxX: craneBounds.maxX,
+        minZ: craneBounds.minZ,
+        maxZ: craneBounds.maxZ,
+        // Keep home inside the (possibly shrunk) travel range.
+        homeX: Math.min(Math.max(gameConfig.crane.homeX, craneBounds.minX), craneBounds.maxX),
+        homeZ: Math.min(Math.max(gameConfig.crane.homeZ, craneBounds.minZ), craneBounds.maxZ),
       },
       prize: {
         ...gameConfig.prize,
@@ -196,6 +204,10 @@ export function useDebugConfig(): GameConfig {
     armControls.armPower,
     armControls.descentLimitY,
     armControls.descentTensionStop,
+    craneBounds.minX,
+    craneBounds.maxX,
+    craneBounds.minZ,
+    craneBounds.maxZ,
     prizeControls.width,
     prizeControls.height,
     prizeControls.depth,

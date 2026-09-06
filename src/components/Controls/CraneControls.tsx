@@ -6,7 +6,6 @@
 
 import { useCallback, useEffect } from "react";
 import { enabledButtons } from "../../game/craneStateMachine";
-import { gameConfig } from "../../config/gameConfig";
 import {
   goDirect,
   playAI,
@@ -91,8 +90,8 @@ function HoldMoveControls() {
 function DirectMoveControls() {
   const craneState = useGameState((s) => s.craneState);
   const target = useGameState((s) => s.directTarget);
+  const { minX, maxX, minZ, maxZ } = useGameState((s) => s.craneBounds);
   const idle = craneState === "IDLE";
-  const { minX, maxX, minZ, maxZ } = gameConfig.crane;
 
   return (
     <div className="direct-controls">

@@ -21,6 +21,18 @@ export interface ArmControls {
   descentTensionStop: number;
 }
 
+/** Player-adjustable X/Z travel limits for the crane (on-screen ARM panel). */
+export interface CraneBounds {
+  minX: number;
+  maxX: number;
+  /** minZ is the deepest into the cabinet; maxZ is the front / home edge. */
+  minZ: number;
+  maxZ: number;
+}
+
+/** Hard stops on how far the travel-limit sliders can be pushed. */
+export const CRANE_BOUND_LIMITS = { minX: -2, maxX: 2, minZ: -2, maxZ: 2 };
+
 /** Per-rod placement; each rod is dragged independently in the 3D view. */
 export interface RodPlacement {
   /** Stable identity, independent of array position (rods can be added/removed). */
@@ -89,6 +101,7 @@ export interface PrizeSpawn {
 export interface SettingsPreset {
   rods: RodPlacement[];
   armControls: ArmControls;
+  craneBounds: CraneBounds;
   prizeControls: PrizeControls;
   prizeSpawn: PrizeSpawn;
   /** Epoch ms, for the "saved at" label / filled check. */
@@ -149,6 +162,8 @@ export interface GameState {
   input: { right: boolean; back: boolean };
   /** Player-adjustable arm parameters, shown on the game screen. */
   armControls: ArmControls;
+  /** Player-adjustable X/Z travel limits for the crane. */
+  craneBounds: CraneBounds;
   /** Per-rod bridge placement, adjustable by dragging each rod. */
   bridgeControls: BridgeControls;
   /** Prize size, adjustable from an on-screen panel. */
@@ -197,6 +212,12 @@ const initialState: GameState = {
     armPower: gameConfig.claw.motorStiffness,
     descentLimitY: gameConfig.crane.lowestY,
     descentTensionStop: gameConfig.crane.descentTensionStop,
+  },
+  craneBounds: {
+    minX: gameConfig.crane.minX,
+    maxX: gameConfig.crane.maxX,
+    minZ: gameConfig.crane.minZ,
+    maxZ: gameConfig.crane.maxZ,
   },
   bridgeControls: { rods: initialRods() },
   prizeControls: {
@@ -301,6 +322,20 @@ export function setArmControl<K extends keyof ArmControls>(
   setState({ armControls: { ...state.armControls, [key]: value } });
 }
 
+/** Set one crane travel limit, keeping min < max on that axis. */
+export function setCraneBound<K extends keyof CraneBounds>(
+  key: K,
+  value: number,
+): void {
+  const b = { ...state.craneBounds, [key]: value };
+  const gap = 0.1;
+  if (key === "minX") b.minX = Math.min(b.minX, b.maxX - gap);
+  if (key === "maxX") b.maxX = Math.max(b.maxX, b.minX + gap);
+  if (key === "minZ") b.minZ = Math.min(b.minZ, b.maxZ - gap);
+  if (key === "maxZ") b.maxZ = Math.max(b.maxZ, b.minZ + gap);
+  setState({ craneBounds: b });
+}
+
 export function setRodPlacement(id: string, patch: Partial<RodPlacement>): void {
   const rods = state.bridgeControls.rods.map((r) => (r.id === id ? { ...r, ...patch } : r));
   setState({ bridgeControls: { rods } });
@@ -396,6 +431,7 @@ export function savePreset(i: number): void {
   const preset: SettingsPreset = {
     rods: state.bridgeControls.rods.map((r) => ({ ...r })),
     armControls: { ...state.armControls },
+    craneBounds: { ...state.craneBounds },
     prizeControls: { ...state.prizeControls },
     prizeSpawn: {
       position: [...state.prizeSpawn.position],
@@ -418,6 +454,7 @@ export function loadPreset(i: number): void {
       rods: preset.rods.map((r) => ({ ...r, id: makeRodId() })),
     },
     armControls: { ...preset.armControls },
+    craneBounds: { ...(preset.craneBounds ?? state.craneBounds) },
     prizeControls: { ...preset.prizeControls },
     prizeSpawn: {
       position: [...preset.prizeSpawn.position],

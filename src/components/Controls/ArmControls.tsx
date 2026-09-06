@@ -1,14 +1,19 @@
 /**
  * Always-on-screen arm tuning (not behind debug mode): arm power, descent
- * limit and the cable-tension stop threshold. Values live in the game store
- * and feed the effective GameConfig via `useDebugConfig`. Also shows the live
- * cable tension so the stop threshold can be judged.
+ * limit, the cable-tension stop threshold, and — in a collapsible section —
+ * the crane's X/Z travel limits. Values live in the game store and feed the
+ * effective GameConfig via `useDebugConfig`. Also shows the live cable
+ * tension so the stop threshold can be judged.
  */
 
+import { useState } from "react";
 import {
+  CRANE_BOUND_LIMITS,
   setArmControl,
+  setCraneBound,
   useGameState,
   type ArmControls as ArmControlsState,
+  type CraneBounds,
 } from "../../game/gameStore";
 
 interface SliderSpec {
@@ -47,9 +52,25 @@ const SLIDERS: SliderSpec[] = [
   },
 ];
 
+interface BoundSpec {
+  key: keyof CraneBounds;
+  label: string;
+  min: number;
+  max: number;
+}
+
+const BOUND_SLIDERS: BoundSpec[] = [
+  { key: "minX", label: "X 最小 (左)", min: CRANE_BOUND_LIMITS.minX, max: CRANE_BOUND_LIMITS.maxX },
+  { key: "maxX", label: "X 最大 (右)", min: CRANE_BOUND_LIMITS.minX, max: CRANE_BOUND_LIMITS.maxX },
+  { key: "minZ", label: "Z 最小 (奥)", min: CRANE_BOUND_LIMITS.minZ, max: CRANE_BOUND_LIMITS.maxZ },
+  { key: "maxZ", label: "Z 最大 (手前)", min: CRANE_BOUND_LIMITS.minZ, max: CRANE_BOUND_LIMITS.maxZ },
+];
+
 export function ArmControls() {
   const armControls = useGameState((s) => s.armControls);
+  const craneBounds = useGameState((s) => s.craneBounds);
   const cableTension = useGameState((s) => s.cableTension);
+  const [boundsOpen, setBoundsOpen] = useState(false);
 
   return (
     <div className="arm-controls">
@@ -65,14 +86,44 @@ export function ArmControls() {
               max={s.max}
               step={s.step}
               value={value}
-              onChange={(e) =>
-                setArmControl(s.key, e.currentTarget.valueAsNumber)
-              }
+              onChange={(e) => setArmControl(s.key, e.currentTarget.valueAsNumber)}
             />
             <span className="arm-control-value">{s.format(value)}</span>
           </label>
         );
       })}
+
+      <button
+        type="button"
+        className={boundsOpen ? "arm-bounds-toggle open" : "arm-bounds-toggle"}
+        onClick={() => setBoundsOpen((v) => !v)}
+      >
+        {boundsOpen ? "▾" : "▸"} 可動範囲 (X / Z)
+      </button>
+      {boundsOpen && (
+        <div className="arm-bounds-panel">
+          {BOUND_SLIDERS.map((b) => {
+            const value = craneBounds[b.key];
+            return (
+              <label key={b.key} className="arm-control-row">
+                <span className="arm-control-label">{b.label}</span>
+                <input
+                  type="range"
+                  min={b.min}
+                  max={b.max}
+                  step={0.05}
+                  value={value}
+                  onChange={(e) =>
+                    setCraneBound(b.key, e.currentTarget.valueAsNumber)
+                  }
+                />
+                <span className="arm-control-value">{value.toFixed(2)}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+
       <div className="arm-control-readout">
         <span>糸の張力</span>
         <span className="arm-control-value">
