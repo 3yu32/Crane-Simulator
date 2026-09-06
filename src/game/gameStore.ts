@@ -215,6 +215,8 @@ export interface GameState {
   aiError: string | null;
   /** The last (X, Z) the AI decided on, for the on-screen readout. */
   aiLastMove: DirectTarget | null;
+  /** The AI's one-line strategy note for the last move. */
+  aiLastStrategy: string | null;
   /** Token usage + cost of the last AI request, for the on-screen readout. */
   aiLastUsage: AiUsage | null;
   /** Style 3: when on, each AI run is saved to a local folder via the backend. */
@@ -265,6 +267,7 @@ const initialState: GameState = {
   aiStatus: "idle",
   aiError: null,
   aiLastMove: null,
+  aiLastStrategy: null,
   aiLastUsage: null,
   aiLogging: false,
   cableTension: 0,
@@ -432,6 +435,10 @@ export function setAiLastMove(aiLastMove: DirectTarget): void {
 
 export function setAiLastUsage(aiLastUsage: AiUsage | null): void {
   setState({ aiLastUsage });
+}
+
+export function setAiLastStrategy(aiLastStrategy: string | null): void {
+  setState({ aiLastStrategy });
 }
 
 export function toggleAiLogging(): void {

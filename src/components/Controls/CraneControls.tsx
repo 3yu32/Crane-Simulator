@@ -139,6 +139,7 @@ function AIMoveControls() {
   const aiStatus = useGameState((s) => s.aiStatus);
   const aiError = useGameState((s) => s.aiError);
   const aiLastMove = useGameState((s) => s.aiLastMove);
+  const aiLastStrategy = useGameState((s) => s.aiLastStrategy);
   const aiLastUsage = useGameState((s) => s.aiLastUsage);
   const aiLogging = useGameState((s) => s.aiLogging);
   const idle = craneState === "IDLE";
@@ -171,6 +172,9 @@ function AIMoveControls() {
       >
         ローカル保存: {aiLogging ? "ON" : "OFF"}
       </button>
+      {aiLastStrategy && (
+        <div className="ai-status-line ai-strategy">作戦: {aiLastStrategy}</div>
+      )}
       {aiLastMove && (
         <div className="ai-status-line">
           前回の手: X={aiLastMove.x.toFixed(2)} Z={aiLastMove.z.toFixed(2)}

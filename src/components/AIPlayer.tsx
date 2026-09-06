@@ -27,6 +27,7 @@ import {
   goDirect,
   setAiError,
   setAiLastMove,
+  setAiLastStrategy,
   setAiLastUsage,
   setAiStatus,
   setDirectTarget,
@@ -84,6 +85,7 @@ export function AIPlayer({ config }: { config: GameConfig }) {
         setAiStatus("thinking");
         const result = await requestAiMove(configRef.current, gl, scene);
         setAiLastMove(result.move);
+        setAiLastStrategy(result.strategy || null);
         setAiLastUsage(toAiUsage(result.usage, result.costUsd));
 
         const gotBefore = getState().prizeGet ? 1 : 0;
@@ -103,6 +105,7 @@ export function AIPlayer({ config }: { config: GameConfig }) {
         await postAiLog({
           prompt: result.prompt,
           response: result.response,
+          strategy: result.strategy,
           move: result.move,
           inputFront: result.inputFront,
           inputSide: result.inputSide,

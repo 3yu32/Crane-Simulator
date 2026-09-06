@@ -204,15 +204,25 @@ async function handleAiMove(req, res) {
     return;
   }
 
+  const strategy = typeof parsed.strategy === "string" ? parsed.strategy.trim() : null;
+
   appendUsageLine({
     timestamp: new Date().toISOString(),
     model: MODEL,
+    strategy,
     move: { x: parsed.x, z: parsed.z },
     usage,
     costUsd: cost,
   });
 
-  sendJson(res, 200, { x: parsed.x, z: parsed.z, raw: flatText, usage, costUsd: cost });
+  sendJson(res, 200, {
+    x: parsed.x,
+    z: parsed.z,
+    strategy,
+    raw: flatText,
+    usage,
+    costUsd: cost,
+  });
 }
 
 async function handleAiLog(req, res) {
@@ -231,8 +241,10 @@ async function handleAiLog(req, res) {
     result_side: decodeDataUrl(body.resultSide),
   };
 
+  // Unique folder — never reuse/overwrite an existing run's directory.
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const dir = path.join(LOG_DIR, stamp);
+  let dir = path.join(LOG_DIR, stamp);
+  for (let n = 2; existsSync(dir); n++) dir = path.join(LOG_DIR, `${stamp}_${n}`);
 
   try {
     mkdirSync(dir, { recursive: true });
@@ -245,6 +257,7 @@ async function handleAiLog(req, res) {
         {
           timestamp: new Date().toISOString(),
           model: MODEL,
+          strategy: body.strategy ?? null,
           prompt: body.prompt ?? null,
           response: body.response ?? null,
           move: body.move ?? null,

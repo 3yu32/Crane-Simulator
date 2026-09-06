@@ -95,8 +95,9 @@ function buildPrompt(config: GameConfig): string {
       `${minZ.toFixed(2)}（最も奥）から ${maxZ.toFixed(2)}（最も手前）の範囲です。`,
     "目盛りを読み取って、景品の中心の真上にアームが来る座標を答えてください。",
     "",
+    "strategy には今回の狙い・作戦を日本語50文字以内で簡潔に書いてください。",
     "出力はJSONのみ。他の文章は一切含めないでください。",
-    '形式: {"x": 数値, "z": 数値}',
+    '形式: {"strategy": "作戦(50文字以内)", "x": 数値, "z": 数値}',
   ].join("\n");
 }
 
@@ -111,6 +112,7 @@ export interface TokenUsage {
 interface AiMoveResponse {
   x?: unknown;
   z?: unknown;
+  strategy?: unknown;
   raw?: unknown;
   usage?: TokenUsage | null;
   costUsd?: number | null;
@@ -119,6 +121,8 @@ interface AiMoveResponse {
 
 export interface AiMoveResult {
   move: { x: number; z: number };
+  /** The model's one-line strategy note (≤ ~50 chars), or "" if it gave none. */
+  strategy: string;
   /** The exact prompt text sent to the model. */
   prompt: string;
   /** The model's raw reply text. */
@@ -167,6 +171,7 @@ export async function requestAiMove(
       x: Math.min(maxX, Math.max(minX, data.x)),
       z: Math.min(maxZ, Math.max(minZ, data.z)),
     },
+    strategy: typeof data.strategy === "string" ? data.strategy.trim() : "",
     prompt,
     response: typeof data.raw === "string" ? data.raw : "",
     inputFront: front,
@@ -179,6 +184,7 @@ export async function requestAiMove(
 export interface AiLogEntry {
   prompt: string;
   response: string;
+  strategy: string;
   move: { x: number; z: number };
   inputFront: string;
   inputSide: string;
