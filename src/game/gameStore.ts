@@ -170,14 +170,29 @@ const PRESET_VERSION = 3;
 const num = (v: unknown, fallback: number) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
 
+/**
+ * A rod's `z` is its height and `y` its depth. Detect (by value, not by any
+ * version tag) whether a stored rod set is in the pre-swap layout where the
+ * two were the other way round — presets saved in the brief window between the
+ * axis rename and the first migration can also land here mislabelled.
+ * A bridge is parallel rods: they share one height and fan out in depth.
+ */
+function rodsAreLegacyOriented(rods: { y: number; z: number }[]): boolean {
+  if (rods.length === 0) return false;
+  const eq = (a: number, b: number) => Math.abs(a - b) < 1e-3;
+  const sameY = rods.every((r) => eq(r.y, rods[0].y));
+  const sameZ = rods.every((r) => eq(r.z, rods[0].z));
+  if (sameZ && !sameY) return false; // shared height sits in z → current layout
+  if (sameY && !sameZ) return true; // shared height sits in y → legacy layout
+  // Single rod or an even grid: a real rod height is never this low.
+  return rods.some((r) => r.z < 0.35 && r.y >= 0.35);
+}
+
 /** Bring a stored preset of any past version up to the current shape. */
 function migratePreset(raw: unknown): SettingsPreset | null {
   if (!raw || typeof raw !== "object") return null;
   const p = raw as Record<string, unknown>;
   if (p.version === PRESET_VERSION) return p as unknown as SettingsPreset;
-
-  // Pre-swap presets (no version) named the axes the other way round.
-  const preSwap = p.version === undefined;
 
   const armIn = (p.armControls ?? {}) as Record<string, unknown>;
   const armControls: ArmControls = {
@@ -191,26 +206,45 @@ function migratePreset(raw: unknown): SettingsPreset | null {
   const craneBounds: CraneBounds = {
     minX: num(cbIn.minX, gameConfig.crane.minX),
     maxX: num(cbIn.maxX, gameConfig.crane.maxX),
-    minY: num(preSwap ? cbIn.minZ : cbIn.minY, gameConfig.crane.minY),
-    maxY: num(preSwap ? cbIn.maxZ : cbIn.maxY, gameConfig.crane.maxY),
+    minY: num(cbIn.minY ?? cbIn.minZ, gameConfig.crane.minY),
+    maxY: num(cbIn.maxY ?? cbIn.maxZ, gameConfig.crane.maxY),
   };
 
   const rodsIn = Array.isArray(p.rods) ? (p.rods as Record<string, unknown>[]) : [];
-  const rods = rodsIn.map((r) => ({
+  const parsedRods = rodsIn.map((r) => ({
     id: String(r.id ?? ""),
     friction: num(r.friction, 0),
-    // Pre-swap: y held height, z held depth — flip to the current meaning.
-    y: preSwap ? num(r.z, 0) : num(r.y, 0),
-    z: preSwap ? num(r.y, 0) : num(r.z, 0),
-  })) as RodPlacement[];
+    y: num(r.y, 0),
+    z: num(r.z, 0),
+  }));
+  const flip = rodsAreLegacyOriented(parsedRods);
+  const rods: RodPlacement[] = parsedRods.map((r) =>
+    flip ? { ...r, y: r.z, z: r.y } : r,
+  );
+
+  const psIn = (p.prizeSpawn ?? {}) as Record<string, unknown>;
+  const prizeSpawn: PrizeSpawn = {
+    position: Array.isArray(psIn.position)
+      ? ([...(psIn.position as number[])] as [number, number, number])
+      : [...gameConfig.prize.position],
+    rotation: Array.isArray(psIn.rotation)
+      ? ([...(psIn.rotation as number[])] as [number, number, number])
+      : [0, 0, 0],
+  };
+  const pcIn = (p.prizeControls ?? {}) as Record<string, unknown>;
+  const prizeControls: PrizeControls = {
+    width: num(pcIn.width, gameConfig.prize.width),
+    height: num(pcIn.height, gameConfig.prize.height),
+    depth: num(pcIn.depth, gameConfig.prize.depth),
+  };
 
   return {
     version: PRESET_VERSION,
     rods,
     armControls,
     craneBounds,
-    prizeControls: p.prizeControls as PrizeControls,
-    prizeSpawn: p.prizeSpawn as PrizeSpawn,
+    prizeControls,
+    prizeSpawn,
     savedAt: num(p.savedAt, Date.now()),
   };
 }
@@ -223,10 +257,15 @@ function loadPresets(): (SettingsPreset | null)[] {
     if (!raw) return empty;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return empty;
-    return Array.from({ length: PRESET_SLOTS }, (_, i) => {
+    const migrated = Array.from({ length: PRESET_SLOTS }, (_, i) => {
       const p = parsed[i];
       return p && typeof p === "object" ? migratePreset(p) : null;
     });
+    // Write the upgraded shape back so the fix-up runs once, not every load.
+    if (JSON.stringify(migrated) !== JSON.stringify(parsed.slice(0, PRESET_SLOTS))) {
+      persistPresets(migrated);
+    }
+    return migrated;
   } catch {
     return empty;
   }
