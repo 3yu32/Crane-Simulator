@@ -6,11 +6,15 @@
  * (screen-horizontal maps to world X when viewed through the front camera,
  * or world Z when viewed through the side camera — whichever axis actually
  * runs left-right for that camera; screen-vertical always maps to height).
- * Holding Ctrl while dragging rotates it instead (yaw from horizontal,
- * pitch from vertical). Both temporarily drive the body directly and zero
- * its velocities each move so physics doesn't fight the drag; releasing
- * hands it straight back to gravity/collisions — and records where it was
- * left as the new spawn pose (`prizeSpawn`), which RESET restores.
+ * A modifier + drag rotates it instead — one axis per gesture, from
+ * horizontal drag:
+ *   - Ctrl          → yaw   (turn about the vertical / height axis)
+ *   - Shift         → pitch (tip forward / back, about the 左右 axis)
+ *   - Ctrl + Shift  → roll  (bank sideways, about the 奥行き / depth axis)
+ * Both move and rotate temporarily drive the body directly and zero its
+ * velocities each move so physics doesn't fight the drag; releasing hands
+ * it straight back to gravity/collisions — and records where it was left as
+ * the new spawn pose (`prizeSpawn`), which RESET restores.
  */
 
 import { useEffect, type RefObject } from "react";
@@ -20,7 +24,7 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import type { ThreeEvent } from "@react-three/fiber";
-import { Euler, Quaternion } from "three";
+import { Euler, Quaternion, Vector3 } from "three";
 import type { GameConfig } from "../../config/gameConfig";
 import { getState, setPrizeSpawn, useGameState } from "../../game/gameStore";
 import { draggingThroughSideCamera } from "../../game/viewportCamera";
@@ -83,9 +87,6 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
     const startClientY = e.clientY;
     const startPos = body.translation();
     const startRot = body.rotation();
-    const startEuler = new Euler().setFromQuaternion(
-      new Quaternion(startRot.x, startRot.y, startRot.z, startRot.w),
-    );
     const usingSideCam = draggingThroughSideCamera(startClientX, startClientY);
     const [minX, maxX, minZ, maxZ] = floor.bounds;
 
@@ -95,14 +96,25 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
       const dx = ev.clientX - startClientX;
       const dy = ev.clientY - startClientY;
 
-      if (ev.ctrlKey) {
-        const q = new Quaternion().setFromEuler(
-          new Euler(
-            startEuler.x - dy * ROTATE_SCALE,
-            startEuler.y + dx * ROTATE_SCALE,
-            startEuler.z,
-          ),
-        );
+      if (ev.ctrlKey || ev.shiftKey) {
+        // Rotate mode: one world axis per gesture, from horizontal drag,
+        // composed onto the pose the drag started from.
+        //   Ctrl        → yaw   (world Y, our height)
+        //   Shift       → pitch (world X, our 左右)
+        //   Ctrl+Shift  → roll  (world Z, our 奥行き)
+        const turn = dx * ROTATE_SCALE;
+        const axis =
+          ev.ctrlKey && ev.shiftKey
+            ? new Vector3(0, 0, 1)
+            : ev.ctrlKey
+              ? new Vector3(0, 1, 0)
+              : new Vector3(1, 0, 0);
+        const q = new Quaternion(
+          startRot.x,
+          startRot.y,
+          startRot.z,
+          startRot.w,
+        ).premultiply(new Quaternion().setFromAxisAngle(axis, turn));
         b.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
         b.setTranslation(startPos, true);
       } else {
