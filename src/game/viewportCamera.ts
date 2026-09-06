@@ -16,7 +16,7 @@ import type { PerspectiveCamera } from "three";
 import { getState } from "./gameStore";
 
 /** Inset placement in CSS pixels (must match `.side-view-frame` in App.css). */
-export const SIDE_VIEW_RECT = { left: 14, top: 288, width: 232, height: 136 };
+export const SIDE_VIEW_RECT = { left: 14, top: 362, width: 232, height: 124 };
 
 /**
  * SideView owns and updates this camera every frame; the Canvas `events`
