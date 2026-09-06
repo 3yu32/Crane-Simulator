@@ -7,6 +7,7 @@
 import {
   MAX_RODS,
   MIN_RODS,
+  ROD_FRICTION_MAX,
   addRod,
   removeRod,
   setRodPlacement,
@@ -44,8 +45,8 @@ export function BridgeControls() {
               <input
                 type="range"
                 min={0}
-                max={2}
-                step={0.05}
+                max={ROD_FRICTION_MAX}
+                step={0.1}
                 value={rod.friction}
                 onChange={(e) =>
                   setRodPlacement(rod.id, { friction: e.currentTarget.valueAsNumber })

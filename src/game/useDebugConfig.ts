@@ -13,7 +13,12 @@
 import { useEffect, useMemo } from "react";
 import { folder, useControls } from "leva";
 import { gameConfig, type GameConfig } from "../config/gameConfig";
-import { setOrbit, setShowColliders, useGameState } from "./gameStore";
+import {
+  ROD_FRICTION_MAX,
+  setOrbit,
+  setShowColliders,
+  useGameState,
+} from "./gameStore";
 
 export function useDebugConfig(): GameConfig {
   const debug = useGameState((s) => s.debug);
@@ -43,8 +48,8 @@ export function useDebugConfig(): GameConfig {
         rodFriction: {
           value: gameConfig.bridge.friction,
           min: 0,
-          max: 2,
-          step: 0.05,
+          max: ROD_FRICTION_MAX,
+          step: 0.1,
           label: "新規バーの摩擦(初期値)",
         },
       }),

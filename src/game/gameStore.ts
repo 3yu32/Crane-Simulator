@@ -39,6 +39,8 @@ export interface BridgeControls {
 /** Rod count is player-adjustable (add/remove), within sane bounds. */
 export const MIN_RODS = 1;
 export const MAX_RODS = 10;
+/** Upper bound for a rod's friction slider (and the rod colour scale). */
+export const ROD_FRICTION_MAX = 20;
 
 /** Prize size, adjustable from an on-screen panel. */
 export interface PrizeControls {
