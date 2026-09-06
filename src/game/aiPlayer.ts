@@ -6,58 +6,63 @@
  * logging is on) also writes each run to a local folder.
  */
 
-import type { WebGLRenderer } from "three";
+import type { PerspectiveCamera, Scene, WebGLRenderer } from "three";
 import type { GameConfig } from "../config/gameConfig";
-import { getState } from "./gameStore";
-import { SIDE_VIEW_RECT } from "./viewportCamera";
+import { sideCameraRef } from "./viewportCamera";
 
 const AI_BACKEND_URL =
   (import.meta.env.VITE_AI_BACKEND_URL as string | undefined) ?? "http://localhost:8787";
 
-interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-function cropToDataUrl(source: HTMLCanvasElement, rect: Rect): string {
-  const out = document.createElement("canvas");
-  out.width = Math.max(1, Math.round(rect.w));
-  out.height = Math.max(1, Math.round(rect.h));
-  const ctx = out.getContext("2d");
-  if (!ctx) throw new Error("画面の撮影に失敗しました (2D context unavailable)");
-  ctx.drawImage(source, rect.x, rect.y, rect.w, rect.h, 0, 0, out.width, out.height);
-  return out.toDataURL("image/jpeg", 0.85);
-}
+/** Long edge of the captured images. Full canvas res (dpr 2 → 2560) is overkill. */
+const MAX_CAPTURE_WIDTH = 1280;
 
 /**
- * Front and side views currently live in the same canvas — one fills it, the
- * other is scissored into the SideView inset (see SideView.tsx) — so getting
- * each as its own image just means cropping the right region for whichever
- * is currently where.
+ * Render one camera full-frame onto the canvas and read it back, downscaled.
+ * Doing a dedicated pass (rather than cropping the on-screen layout) means the
+ * side image is full quality instead of the tiny SideView inset, and neither
+ * image has the other view's inset in a corner. The next SideView frame
+ * repaints the normal composition.
  */
-export function captureViews(gl: WebGLRenderer): { front: string; side: string } {
+function renderCameraToDataUrl(
+  gl: WebGLRenderer,
+  scene: Scene,
+  cam: PerspectiveCamera,
+): string {
   const canvas = gl.domElement;
-  const scaleX = canvas.width / canvas.clientWidth;
-  const scaleY = canvas.height / canvas.clientHeight;
-  const swapped = getState().sideViewSwapped;
+  const w = canvas.width;
+  const h = canvas.height;
 
-  const fullRect: Rect = { x: 0, y: 0, w: canvas.width, h: canvas.height };
-  const insetRect: Rect = {
-    x: SIDE_VIEW_RECT.left * scaleX,
-    y: SIDE_VIEW_RECT.top * scaleY,
-    w: SIDE_VIEW_RECT.width * scaleX,
-    h: SIDE_VIEW_RECT.height * scaleY,
-  };
+  const prevAspect = cam.aspect;
+  cam.aspect = w / h;
+  cam.updateProjectionMatrix();
 
-  const frontRect = swapped ? insetRect : fullRect;
-  const sideRect = swapped ? fullRect : insetRect;
+  gl.setScissorTest(false);
+  gl.setViewport(0, 0, w, h);
+  gl.render(scene, cam);
 
-  return {
-    front: cropToDataUrl(canvas, frontRect),
-    side: cropToDataUrl(canvas, sideRect),
-  };
+  cam.aspect = prevAspect;
+  cam.updateProjectionMatrix();
+
+  const scale = Math.min(1, MAX_CAPTURE_WIDTH / w);
+  const out = document.createElement("canvas");
+  out.width = Math.max(1, Math.round(w * scale));
+  out.height = Math.max(1, Math.round(h * scale));
+  const ctx = out.getContext("2d");
+  if (!ctx) throw new Error("画面の撮影に失敗しました (2D context unavailable)");
+  ctx.drawImage(canvas, 0, 0, w, h, 0, 0, out.width, out.height);
+  return out.toDataURL("image/jpeg", 0.9);
+}
+
+/** Capture the front (main play camera) and side views as full-quality images. */
+export function captureViews(
+  gl: WebGLRenderer,
+  scene: Scene,
+  mainCam: PerspectiveCamera,
+): { front: string; side: string } {
+  const sideCam = sideCameraRef.current;
+  const front = renderCameraToDataUrl(gl, scene, mainCam);
+  const side = sideCam ? renderCameraToDataUrl(gl, scene, sideCam) : front;
+  return { front, side };
 }
 
 function buildPrompt(config: GameConfig): string {
@@ -103,8 +108,10 @@ export interface AiMoveResult {
 export async function requestAiMove(
   config: GameConfig,
   gl: WebGLRenderer,
+  scene: Scene,
+  mainCam: PerspectiveCamera,
 ): Promise<AiMoveResult> {
-  const { front, side } = captureViews(gl);
+  const { front, side } = captureViews(gl, scene, mainCam);
   const prompt = buildPrompt(config);
 
   let res: Response;
