@@ -12,10 +12,10 @@ import type { GameConfig } from "../config/gameConfig";
 const AI_BACKEND_URL =
   (import.meta.env.VITE_AI_BACKEND_URL as string | undefined) ?? "http://localhost:8787";
 
-/** Long edge of the captured images. */
-const MAX_CAPTURE_WIDTH = 1280;
-/** Capture frame aspect (4:3 fits the tall cabinet better than the 16:9 canvas). */
+/** Long edge of the captured images, and their aspect (4:3 fits the tall cabinet). */
+const CAPTURE_LONG_EDGE = 1120;
 const CAPTURE_ASPECT = 4 / 3;
+/** Vertical FOV of the capture cameras. */
 const CAPTURE_FOV = 40;
 /**
  * Dedicated capture cameras framed to show the whole cabinet (floor to top
@@ -27,9 +27,9 @@ const SIDE_EYE: [number, number, number] = [8.2, 3.1, 0];
 const LOOK_AT: [number, number, number] = [0, 1.65, 0];
 
 /**
- * Render one dedicated camera into a 4:3 region of the canvas and read it
- * back, downscaled. The next SideView frame repaints the normal on-screen
- * composition.
+ * Render one dedicated camera to the full canvas (so the renderer's normal
+ * tone-mapping / colour pipeline applies), then centre-crop a 4:3 slice.
+ * Rendering full-frame avoids every pixel-ratio / sub-viewport pitfall.
  */
 function renderViewToDataUrl(
   gl: WebGLRenderer,
@@ -37,25 +37,34 @@ function renderViewToDataUrl(
   eye: [number, number, number],
 ): string {
   const canvas = gl.domElement;
-  const h = canvas.height;
-  const w = Math.min(canvas.width, Math.round(h * CAPTURE_ASPECT));
+  // canvas as an image source is device pixels — unambiguous.
+  const bw = canvas.width;
+  const bh = canvas.height;
 
-  const cam = new PerspectiveCamera(CAPTURE_FOV, CAPTURE_ASPECT, 0.1, 100);
+  const cam = new PerspectiveCamera(CAPTURE_FOV, bw / bh, 0.1, 100);
   cam.position.set(...eye);
   cam.lookAt(...LOOK_AT);
   cam.updateProjectionMatrix();
 
+  // SideView leaves the GL viewport on the inset rect; render full-frame.
+  // gl.setViewport takes LOGICAL px (it multiplies by the pixel ratio).
+  const dpr = gl.getPixelRatio();
   gl.setScissorTest(false);
-  gl.setViewport(0, 0, w, h);
+  gl.setViewport(0, 0, bw / dpr, bh / dpr);
   gl.render(scene, cam);
 
-  const scale = Math.min(1, MAX_CAPTURE_WIDTH / w);
+  // Centre 4:3 slice of the rendered frame (full height, cropped width — the
+  // camera FOV is vertical, so the whole scene is already in frame vertically).
+  const cropW = Math.min(bw, Math.round(bh * CAPTURE_ASPECT));
+  const cropX = Math.round((bw - cropW) / 2);
+  const scale = Math.min(1, CAPTURE_LONG_EDGE / cropW);
+
   const out = document.createElement("canvas");
-  out.width = Math.max(1, Math.round(w * scale));
-  out.height = Math.max(1, Math.round(h * scale));
+  out.width = Math.max(1, Math.round(cropW * scale));
+  out.height = Math.max(1, Math.round(bh * scale));
   const ctx = out.getContext("2d");
   if (!ctx) throw new Error("画面の撮影に失敗しました (2D context unavailable)");
-  ctx.drawImage(canvas, 0, 0, w, h, 0, 0, out.width, out.height);
+  ctx.drawImage(canvas, cropX, 0, cropW, bh, 0, 0, out.width, out.height);
   return out.toDataURL("image/jpeg", 0.9);
 }
 
