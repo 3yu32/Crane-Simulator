@@ -114,9 +114,9 @@ export function useDebugConfig(): GameConfig {
         upperTilt: {
           value: gameConfig.claw.upperTilt,
           min: -0.4,
-          max: 0.6,
+          max: 1,
           step: 0.01,
-          label: "上段の傾き",
+          label: "上段の開き (くの字)",
         },
         gripAngle: {
           value: gameConfig.claw.gripAngle,

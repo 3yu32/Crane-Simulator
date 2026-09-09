@@ -287,8 +287,8 @@ export const gameConfig: GameConfig = {
 
     armLength: 0.54,
     lowerLength: 0.4,
-    upperTilt: 0.12,
-    bendAngle: 0.95,
+    upperTilt: 0.42,
+    bendAngle: 1.15,
     gripAngle: 0,
     gripLength: 0.09,
     gripThickness: 0.028,
