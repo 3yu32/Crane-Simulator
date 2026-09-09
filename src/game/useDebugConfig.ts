@@ -180,6 +180,8 @@ export function useDebugConfig(): GameConfig {
         width: prizeControls.width,
         height: prizeControls.height,
         depth: prizeControls.depth,
+        comOffset: [prizeControls.comX, prizeControls.comY, prizeControls.comZ],
+        comShift: prizeControls.comShift,
       },
     };
 
@@ -231,6 +233,10 @@ export function useDebugConfig(): GameConfig {
     prizeControls.width,
     prizeControls.height,
     prizeControls.depth,
+    prizeControls.comX,
+    prizeControls.comY,
+    prizeControls.comZ,
+    prizeControls.comShift,
     values.prizeMass,
     values.prizeFriction,
     values.rodFriction,

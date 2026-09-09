@@ -167,8 +167,17 @@ export interface GameConfig {
     linearDamping: number;
     angularDamping: number;
 
-    /** Center of mass offset from the geometric center. */
-    centerOfMass: Vec3;
+    /**
+     * Resting centre of mass inside the box, per axis as a fraction of the
+     * half-extent: 0 = geometric centre, ±1 = touching a face.
+     */
+    comOffset: Vec3;
+    /**
+     * How much the centre of mass slides toward the low side as the box tilts
+     * (loose contents), as a fraction of the half-extent. 0 = fixed CoM.
+     * The CoM is always clamped to stay inside the box.
+     */
+    comShift: number;
 
     position: Vec3;
     rotation: Vec3;
@@ -303,7 +312,8 @@ export const gameConfig: GameConfig = {
     linearDamping: 0.35,
     angularDamping: 0.55,
 
-    centerOfMass: [0, 0, 0],
+    comOffset: [0, 0, 0],
+    comShift: 0,
 
     position: [0.15, 1.45, -0.1],
     rotation: [0, 0, 0],

@@ -429,6 +429,16 @@
   margin-bottom: 6px;
 }
 
+.prize-controls-subtitle {
+  margin: 12px -6px 0;
+  padding-top: 8px;
+  border-top: 1px solid #2a2f3a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #8b94a3;
+}
+
 .side-view-frame {
   position: relative;
   width: 232px;

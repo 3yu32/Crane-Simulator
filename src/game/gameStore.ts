@@ -107,11 +107,17 @@ export const MAX_RODS = 10;
 /** Upper bound for a rod's friction slider (and the rod colour scale). */
 export const ROD_FRICTION_MAX = 20;
 
-/** Prize size, adjustable from an on-screen panel. */
+/** Prize size + centre-of-mass, adjustable from an on-screen panel. */
 export interface PrizeControls {
   width: number;
   height: number;
   depth: number;
+  /** Resting CoM per axis, as a fraction of the half-extent (-1..1). */
+  comX: number;
+  comY: number;
+  comZ: number;
+  /** How far the CoM slides toward the low side as the box tilts (0..1). */
+  comShift: number;
 }
 
 /**
@@ -173,8 +179,9 @@ const PRESET_STORAGE_KEY = "crane-game-presets-v1";
  *  - 2: post-swap field names
  *  - 3: adds armControls.armWeightN
  *  - 4: adds armControls.pushDepthM
+ *  - 5: adds prizeControls.comX/comY/comZ/comShift
  */
-const PRESET_VERSION = 4;
+const PRESET_VERSION = 5;
 
 const num = (v: unknown, fallback: number) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
@@ -246,6 +253,10 @@ function migratePreset(raw: unknown): SettingsPreset | null {
     width: num(pcIn.width, gameConfig.prize.width),
     height: num(pcIn.height, gameConfig.prize.height),
     depth: num(pcIn.depth, gameConfig.prize.depth),
+    comX: num(pcIn.comX, gameConfig.prize.comOffset[0]),
+    comY: num(pcIn.comY, gameConfig.prize.comOffset[1]),
+    comZ: num(pcIn.comZ, gameConfig.prize.comOffset[2]),
+    comShift: num(pcIn.comShift, gameConfig.prize.comShift),
   };
 
   return {
@@ -380,6 +391,10 @@ const initialState: GameState = {
     width: gameConfig.prize.width,
     height: gameConfig.prize.height,
     depth: gameConfig.prize.depth,
+    comX: gameConfig.prize.comOffset[0],
+    comY: gameConfig.prize.comOffset[1],
+    comZ: gameConfig.prize.comOffset[2],
+    comShift: gameConfig.prize.comShift,
   },
   controlStyle: "hold",
   directTarget: { x: gameConfig.crane.homeX, y: gameConfig.crane.homeY },

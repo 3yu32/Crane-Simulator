@@ -15,12 +15,18 @@
  * velocities each move so physics doesn't fight the drag; releasing hands
  * it straight back to gravity/collisions — and records where it was left as
  * the new spawn pose (`prizeSpawn`), which RESET restores.
+ *
+ * Centre of mass: the box carries an explicit mass/inertia (the collider
+ * itself contributes none). `prize.comOffset` places the resting CoM inside
+ * the box, and `prize.comShift` lets it slide toward the low side as the box
+ * tilts (loose contents) — always clamped to stay inside the box.
  */
 
 import { useEffect, type RefObject } from "react";
 import {
   CuboidCollider,
   RigidBody,
+  useBeforePhysicsStep,
   type RapierRigidBody,
 } from "@react-three/rapier";
 import type { ThreeEvent } from "@react-three/fiber";
@@ -41,9 +47,60 @@ const ROTATE_SCALE = 0.012;
 // Vertical drag clamp, in world Y (= our height axis Z).
 const HEIGHT_MIN = 0.3;
 const HEIGHT_MAX = 3.2;
+/** Keep the CoM within this fraction of each half-extent — never outside the box. */
+const COM_MARGIN = 0.9;
+/** The collider contributes no mass; the body's mass/inertia is set explicitly. */
+const ZERO_COLLIDER_MASS = {
+  mass: 0,
+  centerOfMass: { x: 0, y: 0, z: 0 },
+  principalAngularInertia: { x: 0, y: 0, z: 0 },
+  angularInertiaLocalFrame: { x: 0, y: 0, z: 0, w: 1 },
+};
+const IDENTITY_ROT = { x: 0, y: 0, z: 0, w: 1 };
+const G_DOWN = new Vector3(0, -1, 0);
+const _gLocal = new Vector3();
+const _qInv = new Quaternion();
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
+}
+
+/**
+ * Write the box's mass, inertia and current centre of mass onto the body.
+ * The CoM = resting offset + a gravity-driven slide toward the low side,
+ * clamped to stay inside the box.
+ */
+function writeMassProps(
+  body: RapierRigidBody,
+  w: number,
+  h: number,
+  d: number,
+  mass: number,
+  comOx: number,
+  comOy: number,
+  comOz: number,
+  comShift: number,
+): void {
+  const hw = w / 2;
+  const hh = h / 2;
+  const hd = d / 2;
+  const r = body.rotation();
+  _qInv.set(r.x, r.y, r.z, r.w).invert();
+  _gLocal.copy(G_DOWN).applyQuaternion(_qInv); // gravity direction, box-local
+  const cx = clamp(comOx * hw + comShift * hw * _gLocal.x, -hw * COM_MARGIN, hw * COM_MARGIN);
+  const cy = clamp(comOy * hh + comShift * hh * _gLocal.y, -hh * COM_MARGIN, hh * COM_MARGIN);
+  const cz = clamp(comOz * hd + comShift * hd * _gLocal.z, -hd * COM_MARGIN, hd * COM_MARGIN);
+  body.setAdditionalMassProperties(
+    mass,
+    { x: cx, y: cy, z: cz },
+    {
+      x: Math.max(1e-4, (mass / 12) * (h * h + d * d)),
+      y: Math.max(1e-4, (mass / 12) * (w * w + d * d)),
+      z: Math.max(1e-4, (mass / 12) * (w * w + h * h)),
+    },
+    IDENTITY_ROT,
+    false,
+  );
 }
 
 export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
@@ -51,8 +108,22 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
   const spawn = useGameState((s) => s.prizeSpawn);
 
   const [w, h, d] = [prize.width, prize.height, prize.depth];
+  const [comOx, comOy, comOz] = prize.comOffset;
+  const { comShift, mass } = prize;
   const [sx, sy, sz] = spawn.position;
   const [srx, sry, srz] = spawn.rotation;
+
+  // Seed the mass properties on mount / when they change (before the first
+  // physics step); the per-step hook then tracks the gravity-driven slide.
+  useEffect(() => {
+    const body = prizeRef.current;
+    if (body) writeMassProps(body, w, h, d, mass, comOx, comOy, comOz, comShift);
+  }, [prizeRef, w, h, d, mass, comOx, comOy, comOz, comShift]);
+
+  useBeforePhysicsStep(() => {
+    const body = prizeRef.current;
+    if (body) writeMassProps(body, w, h, d, mass, comOx, comOy, comOz, comShift);
+  });
 
   useEffect(() => {
     resetPrizeRef.current = () => {
@@ -165,7 +236,6 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
       colliders={false}
       position={[sx, sy, sz]}
       rotation={[srx, sry, srz]}
-      mass={prize.mass}
       linearDamping={prize.linearDamping}
       angularDamping={prize.angularDamping}
       // Keep CCD enabled according to physics config.
@@ -177,7 +247,12 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
           Exactly one collider for the physical prize box.
           CuboidCollider args are HALF extents.
           ========================================================= */}
-      <CuboidCollider args={[w / 2, h / 2, d / 2]} friction={prize.friction} restitution={prize.restitution} />
+      <CuboidCollider
+        args={[w / 2, h / 2, d / 2]}
+        friction={prize.friction}
+        restitution={prize.restitution}
+        massProperties={ZERO_COLLIDER_MASS}
+      />
 
       {/* =========================================================
           VISUAL BODY — also the drag/rotate handle.
