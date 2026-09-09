@@ -280,7 +280,10 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
         }}
       >
         <boxGeometry args={[w, h, d]} />
+        {/* keyed so toggling `transparent` rebuilds the material (a runtime
+            flip alone doesn't recompile the shader). */}
         <meshStandardMaterial
+          key={showCom ? "translucent" : "solid"}
           color="#e8607d"
           roughness={0.55}
           metalness={0.05}
