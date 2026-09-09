@@ -19,10 +19,12 @@
  * Centre of mass: the box carries an explicit mass/inertia (the collider
  * itself contributes none). `prize.comOffset` places the resting CoM inside
  * the box, and `prize.comShift` lets it slide toward the low side as the box
- * tilts (loose contents) — always clamped to stay inside the box.
+ * tilts (loose contents) — always clamped to stay inside the box. With the
+ * `showCom` visualiser on, the box turns translucent and the live CoM shows
+ * as a blue dot.
  */
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import {
   CuboidCollider,
   RigidBody,
@@ -30,7 +32,7 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import type { ThreeEvent } from "@react-three/fiber";
-import { Euler, Quaternion, Vector3 } from "three";
+import { Euler, Mesh, Quaternion, Vector3 } from "three";
 import type { GameConfig } from "../../config/gameConfig";
 import { getState, setPrizeSpawn, useGameState } from "../../game/gameStore";
 import { draggingThroughSideCamera } from "../../game/viewportCamera";
@@ -60,6 +62,8 @@ const IDENTITY_ROT = { x: 0, y: 0, z: 0, w: 1 };
 const G_DOWN = new Vector3(0, -1, 0);
 const _gLocal = new Vector3();
 const _qInv = new Quaternion();
+/** Latest box-local CoM written by `writeMassProps`, for the visualiser dot. */
+const _com = new Vector3();
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
@@ -90,6 +94,7 @@ function writeMassProps(
   const cx = clamp(comOx * hw + comShift * hw * _gLocal.x, -hw * COM_MARGIN, hw * COM_MARGIN);
   const cy = clamp(comOy * hh + comShift * hh * _gLocal.y, -hh * COM_MARGIN, hh * COM_MARGIN);
   const cz = clamp(comOz * hd + comShift * hd * _gLocal.z, -hd * COM_MARGIN, hd * COM_MARGIN);
+  _com.set(cx, cy, cz);
   body.setAdditionalMassProperties(
     mass,
     { x: cx, y: cy, z: cz },
@@ -106,6 +111,8 @@ function writeMassProps(
 export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
   const { prize, physics, floor } = config;
   const spawn = useGameState((s) => s.prizeSpawn);
+  const showCom = useGameState((s) => s.showCom);
+  const comDotRef = useRef<Mesh>(null);
 
   const [w, h, d] = [prize.width, prize.height, prize.depth];
   const [comOx, comOy, comOz] = prize.comOffset;
@@ -122,7 +129,9 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
 
   useBeforePhysicsStep(() => {
     const body = prizeRef.current;
-    if (body) writeMassProps(body, w, h, d, mass, comOx, comOy, comOz, comShift);
+    if (!body) return;
+    writeMassProps(body, w, h, d, mass, comOx, comOy, comOz, comShift);
+    comDotRef.current?.position.copy(_com);
   });
 
   useEffect(() => {
@@ -255,7 +264,8 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
       />
 
       {/* =========================================================
-          VISUAL BODY — also the drag/rotate handle.
+          VISUAL BODY — also the drag/rotate handle. Goes translucent
+          in the CoM visualiser so the blue dot inside is visible.
           ========================================================= */}
       <mesh
         castShadow
@@ -270,8 +280,23 @@ export function Prize({ config, prizeRef, resetPrizeRef }: PrizeProps) {
         }}
       >
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color="#e8607d" roughness={0.55} metalness={0.05} />
+        <meshStandardMaterial
+          color="#e8607d"
+          roughness={0.55}
+          metalness={0.05}
+          transparent={showCom}
+          opacity={showCom ? 0.28 : 1}
+          depthWrite={!showCom}
+        />
       </mesh>
+
+      {/* centre-of-mass marker (visualiser only) */}
+      {showCom && (
+        <mesh ref={comDotRef} renderOrder={10}>
+          <sphereGeometry args={[Math.min(w, h, d) * 0.11, 20, 20]} />
+          <meshBasicMaterial color="#2f6bff" depthTest={false} toneMapped={false} />
+        </mesh>
+      )}
     </RigidBody>
   );
 }

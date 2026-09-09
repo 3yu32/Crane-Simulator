@@ -363,6 +363,8 @@ export interface GameState {
   orbit: boolean;
   /** The side view is the big one and the front view is the inset. */
   sideViewSwapped: boolean;
+  /** Show the prize semi-transparent with its centre of mass as a blue dot. */
+  showCom: boolean;
   /** Prize (re)spawn pose; RESET puts the prize here, drag-release updates it. */
   prizeSpawn: PrizeSpawn;
   /** Saved setups, slots 設定1 … 設定N (null = empty). Backed by localStorage. */
@@ -414,6 +416,7 @@ const initialState: GameState = {
   showColliders: false,
   orbit: false,
   sideViewSwapped: false,
+  showCom: false,
   prizeSpawn: {
     position: [...gameConfig.prize.position] as [number, number, number],
     rotation: [...gameConfig.prize.rotation] as [number, number, number],
@@ -481,6 +484,10 @@ export function setShowColliders(showColliders: boolean): void {
 
 export function setOrbit(orbit: boolean): void {
   setState({ orbit });
+}
+
+export function toggleShowCom(): void {
+  setState({ showCom: !state.showCom });
 }
 
 export function toggleSideView(): void {

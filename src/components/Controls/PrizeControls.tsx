@@ -7,6 +7,7 @@
 
 import {
   setPrizeControl,
+  toggleShowCom,
   useGameState,
   type PrizeControls as PrizeControlsState,
 } from "../../game/gameStore";
@@ -51,6 +52,7 @@ function Row({ spec, value }: { spec: SliderSpec; value: number }) {
 
 export function PrizeControls() {
   const prize = useGameState((s) => s.prizeControls);
+  const showCom = useGameState((s) => s.showCom);
 
   return (
     <div className="prize-controls">
@@ -63,6 +65,14 @@ export function PrizeControls() {
       {COM_SLIDERS.map((s) => (
         <Row key={s.key} spec={s} value={prize[s.key]} />
       ))}
+
+      <button
+        type="button"
+        className={showCom ? "prize-viz-toggle on" : "prize-viz-toggle"}
+        onClick={() => toggleShowCom()}
+      >
+        重心を表示 {showCom ? "ON" : "OFF"}
+      </button>
     </div>
   );
 }
