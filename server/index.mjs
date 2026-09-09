@@ -162,29 +162,59 @@ async function handleAiMove(req, res) {
     ],
   };
 
+  // Gemini's free/standard tier rate-limits bursts (429) and occasionally
+  // reports the model as overloaded (500/503). Retry those a few times with
+  // backoff before giving up.
+  const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+  const MAX_ATTEMPTS = 4;
   let upstream;
   let data;
-  try {
-    upstream = await fetch(UPSTREAM_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${API_KEY}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    data = await upstream.json();
-  } catch (err) {
-    sendJson(res, 502, { error: `could not reach Gemini: ${err.message}` });
-    return;
-  }
+  let lastErr = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      upstream = await fetch(UPSTREAM_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      data = await upstream.json().catch(() => null);
+    } catch (err) {
+      lastErr = err;
+      upstream = null;
+    }
 
-  if (!upstream.ok) {
-    sendJson(res, upstream.status, {
-      error: data?.error?.message ?? "Gemini returned an error",
-      raw: data,
-    });
-    return;
+    if (upstream && upstream.ok) break;
+
+    const status = upstream ? upstream.status : "network";
+    const detail = upstream
+      ? (data?.error?.message ?? JSON.stringify(data)?.slice(0, 300))
+      : lastErr?.message;
+    console.warn(
+      `[ai-move] Gemini attempt ${attempt}/${MAX_ATTEMPTS} failed (${status}): ${detail}`,
+    );
+
+    const retryable = !upstream || RETRY_STATUSES.has(upstream.status);
+    if (!retryable || attempt === MAX_ATTEMPTS) {
+      if (!upstream) {
+        sendJson(res, 502, { error: `could not reach Gemini: ${lastErr?.message}` });
+      } else {
+        sendJson(res, upstream.status, {
+          error:
+            (data?.error?.message ??
+              `Gemini returned an error (HTTP ${upstream.status})`) +
+            (upstream.status === 429
+              ? " — レート制限中です。少し待って再実行してください。"
+              : ""),
+          raw: data,
+        });
+      }
+      return;
+    }
+
+    await new Promise((r) => setTimeout(r, 800 * 2 ** (attempt - 1)));
   }
 
   const text = data.choices?.[0]?.message?.content ?? "";
