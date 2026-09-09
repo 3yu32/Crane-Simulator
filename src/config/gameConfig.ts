@@ -285,10 +285,10 @@ export const gameConfig: GameConfig = {
     friction: 0.1,
     restitution: 0.0,
 
-    armLength: 0.42,
+    armLength: 0.54,
     lowerLength: 0.4,
     upperTilt: 0.12,
-    bendAngle: 0.78,
+    bendAngle: 0.95,
     gripAngle: 0,
     gripLength: 0.09,
     gripThickness: 0.028,
