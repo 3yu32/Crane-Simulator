@@ -21,7 +21,7 @@ import { getState } from "./gameStore";
  * every frame (see `syncSideViewRect`), so moving the panel in CSS — or the
  * ARM panel above it growing — never desyncs the render/pick rect.
  */
-export const SIDE_VIEW_RECT = { left: 14, top: 362, width: 232, height: 124 };
+export const SIDE_VIEW_RECT = { left: 14, top: 340, width: 232, height: 96 };
 
 /** Update SIDE_VIEW_RECT from the live DOM position of the inset frame. */
 export function syncSideViewRect(canvas: HTMLCanvasElement): void {

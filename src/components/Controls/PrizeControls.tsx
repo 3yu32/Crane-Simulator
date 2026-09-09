@@ -1,10 +1,11 @@
 /**
- * Always-on-screen prize panel (top-right): box size, then the centre-of-mass
- * controls. Values live in the store and feed the effective GameConfig via
- * `useDebugConfig`; size changes re-mount the prize collider, CoM changes are
- * applied live.
+ * Always-on-screen prize panel (top-right): box size, a "重心を表示" toggle,
+ * and a collapsible centre-of-mass section. Values live in the store and feed
+ * the effective GameConfig via `useDebugConfig`; size changes re-mount the
+ * prize collider, CoM changes are applied live.
  */
 
+import { useState } from "react";
 import {
   setPrizeControl,
   toggleShowCom,
@@ -53,16 +54,12 @@ function Row({ spec, value }: { spec: SliderSpec; value: number }) {
 export function PrizeControls() {
   const prize = useGameState((s) => s.prizeControls);
   const showCom = useGameState((s) => s.showCom);
+  const [comOpen, setComOpen] = useState(false);
 
   return (
     <div className="prize-controls">
       <div className="prize-controls-title">PRIZE SIZE</div>
       {SIZE_SLIDERS.map((s) => (
-        <Row key={s.key} spec={s} value={prize[s.key]} />
-      ))}
-
-      <div className="prize-controls-subtitle">重心 (箱内・半分を1)</div>
-      {COM_SLIDERS.map((s) => (
         <Row key={s.key} spec={s} value={prize[s.key]} />
       ))}
 
@@ -73,6 +70,18 @@ export function PrizeControls() {
       >
         重心を表示 {showCom ? "ON" : "OFF"}
       </button>
+
+      <button
+        type="button"
+        className={comOpen ? "prize-com-toggle open" : "prize-com-toggle"}
+        onClick={() => setComOpen((v) => !v)}
+      >
+        {comOpen ? "▾" : "▸"} 重心の位置 (箱内・半分を1)
+      </button>
+      {comOpen &&
+        COM_SLIDERS.map((s) => (
+          <Row key={s.key} spec={s} value={prize[s.key]} />
+        ))}
     </div>
   );
 }

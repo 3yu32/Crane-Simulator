@@ -124,6 +124,13 @@
   flex-direction: column;
   align-items: center;
   gap: 14px;
+  /* Full-width container: let clicks fall through the empty sides to the
+     panels / scene behind; only the actual controls are interactive. */
+  pointer-events: none;
+}
+
+.controls > * {
+  pointer-events: auto;
 }
 
 .move-buttons {
@@ -342,14 +349,18 @@
   position: absolute;
   top: 14px;
   left: 14px;
-  bottom: 14px;
+  /* Size to content, but never taller than the viewport (then it scrolls). */
+  max-height: calc(100vh - 28px);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   overflow-y: auto;
   overflow-x: visible;
   scrollbar-width: none;
+  overscroll-behavior: contain;
+  /* The container is only there to stack the panels; each panel is
+     interactive, and wheel events over a panel still scroll this container. */
   pointer-events: none;
 }
 
@@ -365,7 +376,7 @@
 .arm-controls {
   position: relative;
   width: 232px;
-  padding: 12px 14px 14px;
+  padding: 10px 14px 10px;
   background: rgba(15, 17, 23, 0.82);
   border: 1px solid #2a2f3a;
   border-radius: 10px;
@@ -386,7 +397,7 @@
   grid-template-columns: 1fr auto;
   align-items: center;
   column-gap: 8px;
-  margin-top: 6px;
+  margin-top: 5px;
   font-size: 11px;
   color: #c7ccd6;
 }
@@ -413,7 +424,7 @@
 
 .prize-controls {
   width: 232px;
-  padding: 12px 14px 14px;
+  padding: 10px 14px 10px;
   background: rgba(15, 17, 23, 0.82);
   border: 1px solid #2a2f3a;
   border-radius: 10px;
@@ -429,20 +440,10 @@
   margin-bottom: 6px;
 }
 
-.prize-controls-subtitle {
-  margin: 12px -6px 0;
-  padding-top: 8px;
-  border-top: 1px solid #2a2f3a;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: #8b94a3;
-}
-
 .prize-viz-toggle {
   width: 100%;
-  margin-top: 12px;
-  padding: 6px 0;
+  margin-top: 10px;
+  padding: 5px 0;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -464,10 +465,30 @@
   background: rgba(47, 107, 255, 0.12);
 }
 
+.prize-com-toggle {
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 0 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-align: left;
+  border: none;
+  border-top: 1px solid #2a2f3a;
+  background: transparent;
+  color: #8b94a3;
+  cursor: pointer;
+}
+
+.prize-com-toggle:hover,
+.prize-com-toggle.open {
+  color: #ff9d3d;
+}
+
 .side-view-frame {
   position: relative;
   width: 232px;
-  height: 112px;
+  height: 96px;
   padding: 0;
   border: 1px solid #2a2f3a;
   border-radius: 8px;
@@ -498,8 +519,8 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-top: 10px;
-  padding-top: 8px;
+  margin-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid #2a2f3a;
   font-size: 11px;
   color: #c7ccd6;
@@ -507,8 +528,8 @@
 
 .arm-bounds-toggle {
   width: 100%;
-  margin-top: 10px;
-  padding: 4px 0;
+  margin-top: 8px;
+  padding: 3px 0;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
