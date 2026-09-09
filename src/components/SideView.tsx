@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import {
   PerspectiveCamera,
   type PerspectiveCamera as TPerspectiveCamera,
@@ -18,6 +18,12 @@ import {
 import type { GameConfig } from "../config/gameConfig";
 import { getState } from "../game/gameStore";
 import { SIDE_VIEW_RECT, syncSideViewRect, sideCameraRef } from "../game/viewportCamera";
+
+function setAspect(cam: TPerspectiveCamera, aspect: number): void {
+  if (cam.aspect === aspect) return;
+  cam.aspect = aspect;
+  cam.updateProjectionMatrix();
+}
 
 function renderInset(
   renderer: WebGLRenderer,
@@ -40,11 +46,6 @@ function renderInset(
 }
 
 export function SideView({ config }: { config: GameConfig }) {
-  const gl = useThree((s) => s.gl);
-  const scene = useThree((s) => s.scene);
-  const camera = useThree((s) => s.camera) as TPerspectiveCamera;
-  const size = useThree((s) => s.size);
-
   const localCamRef = useRef<TPerspectiveCamera | null>(null);
   if (localCamRef.current === null) {
     localCamRef.current = new PerspectiveCamera(40, 1, 0.1, 100);
@@ -69,20 +70,25 @@ export function SideView({ config }: { config: GameConfig }) {
     sideCam.updateProjectionMatrix();
   }, [worldZ]);
 
-  useFrame(() => {
+  useFrame((state) => {
     const sideCam = localCamRef.current;
     if (!sideCam) return;
+    const gl = state.gl;
+    const scene = state.scene;
+    const camera = state.camera as TPerspectiveCamera;
+    const size = state.size;
+
     const swapped = getState().sideViewSwapped;
     const mainCam = swapped ? sideCam : camera;
     const insetCam = swapped ? camera : sideCam;
     syncSideViewRect(gl.domElement);
     const { left, top, width, height } = SIDE_VIEW_RECT;
 
-    // Only sideCam's aspect is ours to change; R3F keeps `camera` synced.
-    sideCam.aspect = swapped
-      ? size.width / size.height
-      : width / height;
-    sideCam.updateProjectionMatrix();
+    // Each camera's aspect must match the rectangle it is drawn into, or the
+    // image stretches — whichever camera lands in the small inset needs the
+    // inset's aspect, not the full-screen one R3F keeps `camera` at.
+    setAspect(mainCam, size.width / size.height);
+    setAspect(insetCam, width / height);
 
     // main view — full frame
     gl.setScissorTest(false);
