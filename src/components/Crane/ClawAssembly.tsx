@@ -48,6 +48,14 @@ export function ClawAssembly({
   const halfSpan = claw.pivotSpan / 2;
   const [hx, hy, hz] = hubPosition;
 
+  // Twist: the hub is yawed about the vertical by `twistDeg` (see Hub), so both
+  // the hub and the prong bodies share the same yawed local frame — the joint
+  // anchors/axis stay in that local frame (unchanged) and only the prong world
+  // positions need the yaw applied.
+  const twist = (claw.twistDeg * Math.PI) / 180;
+  const ox = halfSpan * Math.cos(twist);
+  const oz = -halfSpan * Math.sin(twist);
+
   // The joint hooks are typed against non-null refs; `.current` is null until
   // the bodies mount, which the hook already guards for internally.
   const body1 = hubRef as RefObject<RapierRigidBody>;
@@ -130,14 +138,16 @@ export function ClawAssembly({
         ref={leftRef}
         config={config}
         side="left"
-        pivotPosition={[hx - halfSpan, hy, hz]}
+        pivotPosition={[hx - ox, hy, hz - oz]}
+        yaw={twist}
         onContactForce={reportForce}
       />
       <Claw
         ref={rightRef}
         config={config}
         side="right"
-        pivotPosition={[hx + halfSpan, hy, hz]}
+        pivotPosition={[hx + ox, hy, hz + oz]}
+        yaw={twist}
         onContactForce={reportForce}
       />
     </>

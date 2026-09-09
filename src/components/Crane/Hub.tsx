@@ -3,6 +3,10 @@
  * kinematic-position body: the controller drives its X/Z (with the carriage)
  * and its Y (the winch pays cable out / in). Keeping it kinematic makes it a
  * solid rotational anchor for the prong motors.
+ *
+ * It also carries the claw "twist": a fixed yaw about the vertical axis
+ * (`claw.twistDeg`). Because the hub and prongs then share the same yawed
+ * frame, the revolute joints stay simple (axis = local Z on both).
  */
 
 import { forwardRef } from "react";
@@ -26,6 +30,7 @@ export const Hub = forwardRef<RapierRigidBody, HubProps>(function Hub(
   const halfX = config.claw.pivotSpan / 2 + 0.12;
   const halfY = 0.09;
   const halfZ = 0.15;
+  const twist = (config.claw.twistDeg * Math.PI) / 180;
 
   return (
     <RigidBody
@@ -34,6 +39,7 @@ export const Hub = forwardRef<RapierRigidBody, HubProps>(function Hub(
       colliders={false}
       collisionGroups={CRANE_GROUPS}
       position={[crane.homeX, crane.homeZ, crane.homeY]}
+      rotation={[0, twist, 0]}
       ccd={config.physics.ccd}
     >
       <CuboidCollider args={[halfX, halfY, halfZ]} position={[0, 0, 0]} />

@@ -34,7 +34,7 @@ export function Crane({
   return (
     <>
       <Carriage ref={carriageRef} config={config} />
-      <Hub ref={hubRef} config={config} />
+      <Hub key={`hub-${config.claw.twistDeg}`} ref={hubRef} config={config} />
       <Cable carriageRef={carriageRef} hubRef={hubRef} />
       <ClawAssembly
         key={clawKey}

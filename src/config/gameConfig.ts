@@ -135,6 +135,12 @@ export interface GameConfig {
     lowerLength: number;
     /** Outward lean of the upper segment (rad). */
     upperTilt: number;
+    /**
+     * Yaw of the whole claw about the vertical axis (degrees). 0 = the two
+     * prongs sit on the 左右 (X) line; non-zero twists that line diagonally
+     * into the 奥行き (Y) direction.
+     */
+    twistDeg: number;
     /** Bend between the two segments (rad); the lower segment turns inward. */
     bendAngle: number;
     /** Extra inward bend of the grip tip (rad), relative to the lower segment. */
@@ -288,6 +294,7 @@ export const gameConfig: GameConfig = {
     armLength: 0.54,
     lowerLength: 0.4,
     upperTilt: 0.42,
+    twistDeg: 0,
     bendAngle: 1.15,
     gripAngle: 0,
     gripLength: 0.09,

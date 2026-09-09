@@ -24,12 +24,14 @@ interface ClawProps {
   side: ClawSide;
   /** World-space position of the pivot at mount time. */
   pivotPosition: [number, number, number];
+  /** Yaw of the prong about the vertical axis (rad) — the "twist". */
+  yaw: number;
   /** Called with the total contact-force magnitude (N) on each contact event. */
   onContactForce: (magnitude: number) => void;
 }
 
 export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
-  { config, side, pivotPosition, onContactForce },
+  { config, side, pivotPosition, yaw, onContactForce },
   ref,
 ) {
   const { claw, physics } = config;
@@ -85,6 +87,7 @@ export const Claw = forwardRef<RapierRigidBody, ClawProps>(function Claw(
       colliders={false}
       collisionGroups={CLAW_GROUPS}
       position={pivotPosition}
+      rotation={[0, yaw, 0]}
       mass={claw.mass}
       friction={claw.friction}
       restitution={claw.restitution}
