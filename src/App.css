@@ -231,6 +231,75 @@
   backdrop-filter: blur(4px);
 }
 
+.ai-key {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 10px;
+  color: #8b94a3;
+}
+
+.ai-key.set {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #43d17a;
+}
+
+.ai-key-title {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #c7ccd6;
+}
+
+.ai-key-row {
+  display: flex;
+  gap: 6px;
+}
+
+.ai-key-row input[type="password"] {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #eef1f6;
+  background: rgba(10, 12, 17, 0.9);
+  border: 1px solid #444b57;
+  border-radius: 6px;
+}
+
+.ai-key button {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #c7ccd6;
+  background: rgba(20, 23, 30, 0.85);
+  border: 1px solid #444b57;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ai-key button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ai-key-persist {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.ai-key-note {
+  line-height: 1.5;
+}
+
+.ai-key-note a {
+  color: #7ea6ff;
+}
+
 .ai-log-toggle {
   padding: 6px 0;
   font-size: 11px;

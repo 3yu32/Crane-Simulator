@@ -17,11 +17,13 @@ import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import type { GameConfig } from "../config/gameConfig";
 import {
+  LOCAL_BACKEND_AVAILABLE,
   captureViews,
   postAiLog,
   requestAiMove,
   type TokenUsage,
 } from "../game/aiPlayer";
+import { getApiKey } from "../game/geminiKey";
 import {
   getState,
   goDirect,
@@ -92,7 +94,9 @@ export function AIPlayer({ config }: { config: GameConfig }) {
         setDirectTarget(result.move);
         goDirect();
 
-        if (!getState().aiLogging) {
+        // Run logging writes to the local backend's folder, so it only applies
+        // in backend mode (not with a visitor's own key / on a static deploy).
+        if (!getState().aiLogging || getApiKey() || !LOCAL_BACKEND_AVAILABLE) {
           setAiStatus("idle");
           return;
         }

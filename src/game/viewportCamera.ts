@@ -12,7 +12,8 @@
  * so the grabbed point doesn't match what's on screen.
  */
 
-import type { PerspectiveCamera } from "three";
+import type { RootState } from "@react-three/fiber";
+import type { Camera, PerspectiveCamera } from "three";
 import { getState } from "./gameStore";
 
 /**
@@ -50,17 +51,10 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
   (window as unknown as { __sideCamera: unknown }).__sideCamera = sideCameraRef;
 }
 
-interface ComputeState {
-  pointer: { set: (x: number, y: number) => void };
-  raycaster: { setFromCamera: (pointer: unknown, cam: unknown) => void };
-  camera: unknown;
-  size: { width: number; height: number };
-}
-
 /** Custom R3F events `compute`: pick the camera/viewport under the pointer. */
 export function computeViewportEvent(
   event: { offsetX: number; offsetY: number },
-  state: ComputeState,
+  state: RootState,
 ): void {
   const sideCam = sideCameraRef.current;
   const mainCam = state.camera;
@@ -80,7 +74,7 @@ export function computeViewportEvent(
   const inInset = ox >= left && ox <= left + width && oy >= top && oy <= top + height;
   const swapped = getState().sideViewSwapped;
 
-  let cam: unknown;
+  let cam: Camera;
   let vx: number, vy: number, vw: number, vh: number;
   if (inInset) {
     cam = swapped ? mainCam : sideCam;

@@ -8,9 +8,19 @@
 
 import { PerspectiveCamera, type Scene, type WebGLRenderer } from "three";
 import type { GameConfig } from "../config/gameConfig";
+import { requestGeminiMove } from "./gemini";
+import { getApiKey } from "./geminiKey";
 
 const AI_BACKEND_URL =
   (import.meta.env.VITE_AI_BACKEND_URL as string | undefined) ?? "http://localhost:8787";
+
+/**
+ * The local backend (server/index.mjs) exists in dev, or when a backend URL is
+ * baked in at build time. A static deployment (e.g. GitHub Pages) has none —
+ * there, AI play runs on the visitor's own API key straight from the browser.
+ */
+export const LOCAL_BACKEND_AVAILABLE =
+  import.meta.env.DEV || Boolean(import.meta.env.VITE_AI_BACKEND_URL);
 
 /** Long edge of the captured images, and their aspect (4:3 fits the tall cabinet). */
 const CAPTURE_LONG_EDGE = 1120;
@@ -143,6 +153,30 @@ export async function requestAiMove(
 ): Promise<AiMoveResult> {
   const { front, side } = captureViews(gl, scene);
   const prompt = buildPrompt(config);
+  const { minX, maxX, minY, maxY } = config.crane;
+  const clampMove = (x: number, y: number) => ({
+    x: Math.min(maxX, Math.max(minX, x)),
+    y: Math.min(maxY, Math.max(minY, y)),
+  });
+
+  // Bring-your-own-key: the visitor's key goes browser → Google directly.
+  const userKey = getApiKey();
+  if (userKey) {
+    const r = await requestGeminiMove(userKey, prompt, front, side);
+    return {
+      move: clampMove(r.x, r.y),
+      strategy: r.strategy,
+      prompt,
+      response: r.raw,
+      inputFront: front,
+      inputSide: side,
+      usage: r.usage,
+      costUsd: r.costUsd,
+    };
+  }
+  if (!LOCAL_BACKEND_AVAILABLE) {
+    throw new Error("Gemini の APIキーを入力してください（下の欄に貼り付けるとAIプレイが使えます）。");
+  }
 
   let res: Response;
   try {
@@ -165,12 +199,8 @@ export async function requestAiMove(
     throw new Error(data.error ?? "AIの応答から座標を取得できませんでした。");
   }
 
-  const { minX, maxX, minY, maxY } = config.crane;
   return {
-    move: {
-      x: Math.min(maxX, Math.max(minX, data.x)),
-      y: Math.min(maxY, Math.max(minY, data.y)),
-    },
+    move: clampMove(data.x, data.y),
     strategy: typeof data.strategy === "string" ? data.strategy.trim() : "",
     prompt,
     response: typeof data.raw === "string" ? data.raw : "",

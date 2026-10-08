@@ -319,3 +319,27 @@ npm test
 - 本番バンドルが大きい（Three.js + Rapier wasm、約 1.2MB gzip）。コード分割は未実施。
 - `import.meta.env.DEV` 時のみ `window.__sim` / `window.__gameStore` など
   デバッグ用フックを露出（本番ビルドでは除去）。
+
+## 公開（GitHub Pages）
+
+静的サイトとして GitHub Pages に公開できます（`.github/workflows/deploy.yml`）。
+**APIキーはリポジトリにもビルド成果物にも含まれません。** 公開サイトでは、使う人が
+自分の Gemini APIキーを入力したときだけ AI プレイ（スタイル3）が使えます。
+
+### 手順
+1. GitHub で新しいリポジトリを作成し、`main` に push する
+   （`.env` と `ai-runs/` は `.gitignore` 済み。`.env.example` は空のひな形）。
+2. リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** にする。
+3. push のたびに lint・テスト・ビルドが走り、`https://<ユーザー名>.github.io/<リポジトリ名>/` に公開される。
+
+### APIキーの扱い
+- 入力したキーは **その人のブラウザ内だけ**に保持（既定はタブを閉じると消える。「このブラウザに保存」で次回以降も保持）。
+  送信先は Google の Gemini API のみ（ブラウザ → Google の直接通信）。
+- ビルドに CSP（`connect-src` を自サイトと `generativelanguage.googleapis.com` に限定）を付与してあり、
+  万一スクリプトが紛れ込んでも他所へキーを送りにくくしている。
+- **GitHub の Secrets / Variables に API キーを入れない**こと。特に `VITE_` で始まる値は
+  Vite がビルド成果物（公開JS）に埋め込むため、公開されてしまう。
+- 使う人への推奨：キーは使い捨て用に新しく発行し、Google AI Studio / Cloud Console で
+  利用上限（クォータ）を設定、可能なら HTTP リファラ制限（`https://<ユーザー名>.github.io/*`）を付ける。
+  共有 PC では「保存する」にチェックしない。
+- ローカル保存（`ai-runs/`）とローカルバックエンド（`npm run ai-server`）は開発用。公開サイトでは使われない。

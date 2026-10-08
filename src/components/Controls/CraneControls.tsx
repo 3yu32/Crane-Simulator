@@ -5,7 +5,10 @@
  */
 
 import { useCallback, useEffect } from "react";
+import { LOCAL_BACKEND_AVAILABLE } from "../../game/aiPlayer";
 import { enabledButtons } from "../../game/craneStateMachine";
+import { useApiKey } from "../../game/geminiKey";
+import { ApiKeyField } from "./ApiKeyField";
 import {
   goDirect,
   playAI,
@@ -142,6 +145,9 @@ function AIMoveControls() {
   const aiLastStrategy = useGameState((s) => s.aiLastStrategy);
   const aiLastUsage = useGameState((s) => s.aiLastUsage);
   const aiLogging = useGameState((s) => s.aiLogging);
+  const apiKey = useApiKey();
+  // Without a local backend (static deploy) the visitor's own key is required.
+  const needsKey = !LOCAL_BACKEND_AVAILABLE && !apiKey;
   const idle = craneState === "IDLE";
   const busy =
     aiStatus === "capturing" || aiStatus === "thinking" || aiStatus === "recording";
@@ -156,22 +162,25 @@ function AIMoveControls() {
 
   return (
     <div className="ai-controls">
+      <ApiKeyField />
       <button
         type="button"
         className="go-button"
-        disabled={!idle || busy}
+        disabled={!idle || busy || needsKey}
         onClick={() => playAI()}
       >
         {buttonLabel}
       </button>
-      <button
-        type="button"
-        className={aiLogging ? "ai-log-toggle on" : "ai-log-toggle"}
-        disabled={busy}
-        onClick={() => toggleAiLogging()}
-      >
-        ローカル保存: {aiLogging ? "ON" : "OFF"}
-      </button>
+      {LOCAL_BACKEND_AVAILABLE && !apiKey && (
+        <button
+          type="button"
+          className={aiLogging ? "ai-log-toggle on" : "ai-log-toggle"}
+          disabled={busy}
+          onClick={() => toggleAiLogging()}
+        >
+          ローカル保存: {aiLogging ? "ON" : "OFF"}
+        </button>
+      )}
       {aiLastStrategy && (
         <div className="ai-status-line ai-strategy">作戦: {aiLastStrategy}</div>
       )}
