@@ -2,6 +2,8 @@
  * App shell: the 3D scene fills the screen; UI overlays sit on top (spec §25).
  */
 
+import { useState } from "react";
+import { CompactToolbar, type CompactPanel } from "./components/CompactToolbar";
 import { GameScene } from "./components/GameScene";
 import { CraneControls } from "./components/Controls/CraneControls";
 import { ArmControls } from "./components/Controls/ArmControls";
@@ -42,13 +44,18 @@ function InsetFrame() {
 }
 
 export default function App() {
+  // Small screens show one settings panel at a time (see CompactToolbar);
+  // on large screens CSS ignores this and keeps every panel visible.
+  const [panel, setPanel] = useState<CompactPanel | null>(null);
+
   return (
-    <div className="app">
+    <div className="app" data-panel={panel ?? ""}>
       <div className="scene">
         <GameScene />
       </div>
 
       <header className="title">3D CRANE GAME</header>
+      <CompactToolbar panel={panel} onChange={setPanel} />
       <PrizeGetBanner />
       <div className="left-stack">
         <ArmControls />

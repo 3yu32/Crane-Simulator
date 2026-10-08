@@ -7,15 +7,17 @@
  * the render loop, so this callback draws the main camera and then the inset.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   PerspectiveCamera,
+  Vector3,
   type PerspectiveCamera as TPerspectiveCamera,
   type Scene,
   type WebGLRenderer,
 } from "three";
 import type { GameConfig } from "../config/gameConfig";
+import { placeCamera } from "../game/fitCamera";
 import { getState } from "../game/gameStore";
 import { SIDE_VIEW_RECT, syncSideViewRect, sideCameraRef } from "../game/viewportCamera";
 
@@ -60,15 +62,13 @@ export function SideView({ config }: { config: GameConfig }) {
     };
   }, []);
 
-  // Rod depth centre, which is world Z.
+  // Rod depth centre, which is world Z. The side camera's authored pose; the
+  // frame loop backs it off further when the screen is too narrow to fit.
   const worldZ = config.bridge.rodCenterY;
-  useEffect(() => {
-    const sideCam = localCamRef.current;
-    if (!sideCam) return;
-    sideCam.position.set(8.4, 3.1, worldZ + 0.1);
-    sideCam.lookAt(0.15, 1.55, worldZ);
-    sideCam.updateProjectionMatrix();
-  }, [worldZ]);
+  const sideBase = useMemo(() => new Vector3(8.4, 3.1, worldZ + 0.1), [worldZ]);
+  const sideTarget = useMemo(() => new Vector3(0.15, 1.55, worldZ), [worldZ]);
+  const frontBase = useMemo(() => new Vector3(...config.camera.position), [config.camera.position]);
+  const frontTarget = useMemo(() => new Vector3(...config.camera.target), [config.camera.target]);
 
   useFrame((state) => {
     const sideCam = localCamRef.current;
@@ -89,6 +89,11 @@ export function SideView({ config }: { config: GameConfig }) {
     // inset's aspect, not the full-screen one R3F keeps `camera` at.
     setAspect(mainCam, size.width / size.height);
     setAspect(insetCam, width / height);
+
+    // Back each camera off if its current aspect would crop the cabinet
+    // (tall phone screens). Orbit mode owns the front camera's pose.
+    if (!getState().orbit) placeCamera(camera, frontBase, frontTarget, camera.aspect);
+    placeCamera(sideCam, sideBase, sideTarget, sideCam.aspect);
 
     // main view — full frame
     gl.setScissorTest(false);

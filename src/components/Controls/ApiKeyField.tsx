@@ -62,14 +62,15 @@ export function ApiKeyField() {
         />
         このブラウザに保存する（共有PCでは非推奨）
       </label>
-      <div className="ai-key-note">
+      <details className="ai-key-note">
+        <summary>キーの取り扱いについて</summary>
         キーはこのブラウザ内にのみ保持され、Google の Gemini API 以外へは送信されません。
         キーは{" "}
         <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer noopener">
           Google AI Studio
         </a>{" "}
         で取得できます。
-      </div>
+      </details>
     </form>
   );
 }
