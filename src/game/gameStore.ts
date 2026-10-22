@@ -8,6 +8,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { AI_PLAY_ENABLED } from "../config/features";
 import { gameConfig } from "../config/gameConfig";
 import type { CraneState } from "./craneStateMachine";
 
@@ -547,6 +548,7 @@ export function setPrizeControl<K extends keyof PrizeControls>(
 }
 
 export function setControlStyle(controlStyle: ControlStyle): void {
+  if (controlStyle === "ai" && !AI_PLAY_ENABLED) return;
   setState({ controlStyle });
 }
 
@@ -561,6 +563,7 @@ export function goDirect(): void {
 
 /** Style 3's プレイ button: triggers a capture + AI move (see AIPlayer.tsx). */
 export function playAI(): void {
+  if (!AI_PLAY_ENABLED) return;
   setState({ aiPlayNonce: state.aiPlayNonce + 1, aiStatus: "capturing", aiError: null });
 }
 

@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect } from "react";
+import { AI_PLAY_ENABLED } from "../../config/features";
 import { LOCAL_BACKEND_AVAILABLE } from "../../game/aiPlayer";
 import { enabledButtons } from "../../game/craneStateMachine";
 import { useApiKey } from "../../game/geminiKey";
@@ -39,13 +40,15 @@ function StyleToggle() {
       >
         スタイル2
       </button>
-      <button
-        type="button"
-        className={controlStyle === "ai" ? "style-btn active" : "style-btn"}
-        onClick={() => setControlStyle("ai")}
-      >
-        スタイル3
-      </button>
+      {AI_PLAY_ENABLED && (
+        <button
+          type="button"
+          className={controlStyle === "ai" ? "style-btn active" : "style-btn"}
+          onClick={() => setControlStyle("ai")}
+        >
+          スタイル3
+        </button>
+      )}
     </div>
   );
 }
